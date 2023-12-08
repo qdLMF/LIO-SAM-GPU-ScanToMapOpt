@@ -1,4 +1,4 @@
-# LIO-SAM-CUDA-ScanToMapOpt
+# LIO-SAM-GPU-ScanToMapOpt
 This repository reimplements of the line/plane odometry of LIO-SAM with CUDA.  Replacing pcl's kdtree, a point cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio])) on GPU is used to accelerate 5-neighbour KNN search.
 
 The codes of this reimplementation are in [src/cuda_plane_line_odometry](https://github.com/qdLMF/LIO-SAM-CUDA-ScanToMapOpt/tree/master/src/cuda_plane_line_odometry).
