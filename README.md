@@ -19,7 +19,7 @@ The essential dependencies are as same as [LIO-SAM](https://github.com/TixiaoSha
 
 
 ## Speed-up
-<table style="text-align:center;font-size:8pt">
+<table style="text-align:center;font-size:5pt">
 <tr>
 <th rowspan="2">Sequence</th><th colspan="2">CPU (Intel I7-6700K)</th><th colspan="3">GPU (Nvidia 980TI)</th>
 </tr>
