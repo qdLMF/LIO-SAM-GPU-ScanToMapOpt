@@ -1,14 +1,17 @@
+cmake_minimum_required(VERSION 2.8.3)
+
+set(CUDA)
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda/bin/nvcc)
-set(CUDA)
-# set(CUDA_ARCH_BIN 5.0)
 set(CMAKE_CUDA_ARCHITECTURES 52)
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG -w") # "-w" means "ignore all warnings"
 
 find_package(CUDA REQUIRED)
 message(STATUS "CUDA_LIBRARIES : ${CUDA_LIBRARIES}")
-include_directories(/usr/local/cuda/include)        # for "#include <math_functions.hpp>"
-include_directories(/usr/local/cuda/include/crt)    # for "#include <math_functions.hpp>"
+message(STATUS "CUDA_cublas_LIBRARY : ${CUDA_cublas_LIBRARY}")
+message(STATUS "CUDA_cusolver_LIBRARY : ${CUDA_cusolver_LIBRARY}")
+message(STATUS "CUDA_INCLUDE_DIRS : ${CUDA_INCLUDE_DIRS}")
+include_directories(${CUDA_INCLUDE_DIRS})
 
 find_package(Eigen3 REQUIRED)
 message(STATUS "EIGEN3_INCLUDE_DIR : ${EIGEN3_INCLUDE_DIR}")
