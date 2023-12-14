@@ -5,9 +5,9 @@ Modifications are as follow :
 - The CUDA codes of the line/plane odometry are in [src/cuda_plane_line_odometry](https://github.com/qdLMF/LIO-SAM-CUDA-ScanToMapOpt/tree/master/src/cuda_plane_line_odometry). 
 - To use this CUDA odometry, the scan2MapOptimization() in mapOptimization.cpp is replaced with scan2MapOptimizationWithCUDA().
 
+
 ## About
 This repository reimplements the line/plane odometry in scan2MapOptimization() of mapOptimization.cpp with CUDA. The most significant cost of the original implementation is the 5-neighbour KNN search using pcl's kdtree, which, on my machine (intel i7-6700k CPU, walking_dataset.bag, with OpenMP), usually takes about 5ms. This repository replaces pcl's kdtree with a point cloud cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio])) implemented with CUDA. On my machine (Nvidia 980TI CPU, walking_dataset.bag), average cost of the 5-neighbour KNN search is down to about 0.5~0.6ms, average cost of all one frame is down to about 11ms. Meanwhile, other parts of the line/plane odometry (jacobians & residuals etc) are also implemented with CUDA.
-
 
 
 ## Dependencies
@@ -18,6 +18,15 @@ The essential dependencies are as same as [LIO-SAM](https://github.com/TixiaoSha
 - thrust
 - [Eigen](https://eigen.tuxfamily.org/) (>= 3.3.9)
 
+
+# How To Build
+Before build this repo, some CMAKE variables in [src/cuda_plane_line_odometry/CMakeLists.txt](https://github.com/qdLMF/LIO-SAM-GPU-ScanToMapOpt/blob/master/src/cuda_plane_line_odometry/CMakeLists.txt) need to be modified to fit your enviroment : 
+```
+set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)       # change it to your path to nvcc
+set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda/bin/nvcc)   # change it to your path to nvcc
+set(CMAKE_CUDA_ARCHITECTURES 52)                                        # for example, if your device's compute capability is 6.2, then set this CMAKE variable to 62
+```
+The basic steps to compile and run this repo is as same as [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM).
 
 
 ## Speed-up
