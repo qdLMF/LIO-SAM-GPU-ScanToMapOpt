@@ -78,8 +78,12 @@ link_directories(
 )
 
 ##### cuda_plane_line_odometry #####
-include_directories(/usr/local/cuda/include)        # for "#include <math_functions.hpp>"
-include_directories(/usr/local/cuda/include/crt)    # for "#include <math_functions.hpp>"
+find_package(CUDA REQUIRED)
+message(STATUS "CUDA_LIBRARIES : ${CUDA_LIBRARIES}")
+message(STATUS "CUDA_cublas_LIBRARY : ${CUDA_cublas_LIBRARY}")
+message(STATUS "CUDA_cusolver_LIBRARY : ${CUDA_cusolver_LIBRARY}")
+message(STATUS "CUDA_INCLUDE_DIRS : ${CUDA_INCLUDE_DIRS}")
+include_directories(${CUDA_INCLUDE_DIRS})
 add_subdirectory(src/cuda_plane_line_odometry)
 ##### cuda_plane_line_odometry #####
 
