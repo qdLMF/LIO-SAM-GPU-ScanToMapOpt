@@ -7,7 +7,7 @@ Modifications are as follow :
 
 
 ## About
-This repository reimplements the line/plane odometry in scan2MapOptimization() of mapOptimization.cpp with CUDA. The most significant cost of the original implementation is the 5-neighbour KNN search using pcl's kdtree, which, on my machine (intel i7-6700k CPU, walking_dataset.bag, with OpenMP), usually takes about 5ms. This repository replaces pcl's kdtree with a point cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio])) implemented with CUDA. On my machine (Nvidia 980TI CPU, walking_dataset.bag), average cost of the 5-neighbour KNN search is down to about 0.5~0.6ms, average cost of all one frame is down to about 11ms. Meanwhile, other parts of the line/plane odometry (jacobians & residuals etc) are also implemented with CUDA.
+This repository reimplements the line/plane odometry in scan2MapOptimization() of mapOptimization.cpp with CUDA. The most significant cost of the original implementation is the 5-neighbour KNN search using pcl's kdtree, which, on my machine (intel i7-6700k CPU, walking_dataset.bag, with OpenMP), usually takes about 5ms. This repository replaces pcl's kdtree with a point cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio])) implemented with CUDA. On my machine (Nvidia 980TI CPU, walking_dataset.bag), average cost of the 5-neighbour KNN search is down to about 0.5~0.6ms, average cost of all operations in one frame is down to about 11ms. Meanwhile, other parts of the line/plane odometry (jacobians & residuals etc) are also implemented with CUDA.
 
 
 ## Dependencies
