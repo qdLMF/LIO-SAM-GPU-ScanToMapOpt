@@ -70,10 +70,6 @@ The basic steps to compile and run this repo is as same as [LIO-SAM](https://git
 
 
 
-P.S. It seems that RVIZ will largely slow down the speed of this reimplementation. For example, with RVIZ running, average cost of one frame in walking dataset is dragged to about 15.56ms.
-
-
-
 ## Acknowledgements
 This repository is a modified version of [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM), whose line/plane odometry is originally based upon LOAM.
 
