@@ -1,5 +1,5 @@
 # LIO-SAM-GPU-ScanToMapOpt
-This repository reimplements the line/plane odometry (based on LOAM) of LIO-SAM with CUDA.  Replacing pcl's kdtree, a point cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio])) on GPU is used to accelerate 5-neighbour KNN search.
+This repository reimplements the line/plane odometry (based on LOAM) of LIO-SAM with CUDA.  Replacing pcl's kdtree, a point cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio)) on GPU is used to accelerate 5-neighbour KNN search.
 
 Modifications are as follow : 
 - The CUDA codes of the line/plane odometry are in [src/cuda_plane_line_odometry](https://github.com/qdLMF/LIO-SAM-CUDA-ScanToMapOpt/tree/master/src/cuda_plane_line_odometry). 
@@ -7,7 +7,7 @@ Modifications are as follow :
 
 
 ## About
-This repository reimplements the line/plane odometry in scan2MapOptimization() of mapOptimization.cpp with CUDA. The most significant cost of the original implementation is the 5-neighbour KNN search using pcl's kdtree, which, on my machine (intel i7-6700k CPU, walking_dataset.bag, with OpenMP), usually takes about 5ms. This repository replaces pcl's kdtree with a point cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio])) implemented with CUDA. On my machine (Nvidia 980TI CPU, walking_dataset.bag), average cost of the 5-neighbour KNN search is down to about 0.5~0.6ms, average cost of all operations in one frame is down to about 11ms. Meanwhile, other parts of the line/plane odometry (jacobians & residuals etc) are also implemented with CUDA.
+This repository reimplements the line/plane odometry in scan2MapOptimization() of mapOptimization.cpp with CUDA. The most significant cost of the original implementation is the 5-neighbour KNN search using pcl's kdtree, which, on my machine (intel i7-6700k CPU, walking_dataset.bag, with OpenMP), usually takes about 5ms. This repository replaces pcl's kdtree with a point cloud hash map (inspired by iVox of [Faster-LIO](https://github.com/gaoxiang12/faster-lio)) implemented with CUDA. On my machine (Nvidia 980TI CPU, walking_dataset.bag), average cost of the 5-neighbour KNN search is down to about 0.5~0.6ms, average cost of all operations in one frame is down to about 11ms. Meanwhile, other parts of the line/plane odometry (jacobians & residuals etc) are also implemented with CUDA.
 
 
 ## Dependencies
@@ -73,5 +73,5 @@ The basic steps to compile and run this repo is as same as [LIO-SAM](https://git
 ## Acknowledgements
 This repository is a modified version of [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM), whose line/plane odometry is originally based upon LOAM.
 
-The point cloud hash map on GPU is inspired by iVox data structure of [Faster-LIO](https://github.com/gaoxiang12/faster-lio]), and draws experience from [kdtree_cuda_builder.h](https://github.com/flann-lib/flann/blob/master/src/cpp/flann/algorithms/kdtree_cuda_builder.h) of [FLANN](https://github.com/flann-lib/flann).
+The point cloud hash map on GPU is inspired by iVox data structure of [Faster-LIO](https://github.com/gaoxiang12/faster-lio), and draws experience from [kdtree_cuda_builder.h](https://github.com/flann-lib/flann/blob/master/src/cpp/flann/algorithms/kdtree_cuda_builder.h) of [FLANN](https://github.com/flann-lib/flann).
 
