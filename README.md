@@ -11,7 +11,9 @@ This repository reimplements the line/plane odometry in scan2MapOptimization() o
 
 
 ## Dependencies
-The essential dependencies are as same as [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM). In addition, the CUDA reimplementation of the line/plane odometry requires : 
+The essential dependencies are as same as [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM), tested on Ubuntu 18.04 & Ros Melodic.
+
+In addition, the CUDA reimplementation of the line/plane odometry requires : 
 - C++14
 - [CUDA](https://developer.nvidia.com/cuda-downloads) (>= 11.0)
 - CUBLAS
