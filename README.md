@@ -77,3 +77,6 @@ This repository is a modified version of [LIO-SAM](https://github.com/TixiaoShan
 
 The point cloud hash map on GPU is inspired by iVox data structure of [Faster-LIO](https://github.com/gaoxiang12/faster-lio), and draws experience from [kdtree_cuda_builder.h](https://github.com/flann-lib/flann/blob/master/src/cpp/flann/algorithms/kdtree_cuda_builder.h) of [FLANN](https://github.com/flann-lib/flann).
 
+
+## Star History
+[![Star History Chart](https://api.star-history.com/svg?repos=qdLMF/LIO-SAM-GPU-ScanToMapOpt&type=Timeline)](https://star-history.com/#qdLMF/LIO-SAM-GPU-ScanToMapOpt&Timeline)
