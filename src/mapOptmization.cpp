@@ -274,6 +274,10 @@ public:
 
     void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
     {
+        static int scan_count  = 0;
+        static float c_0_total = 0;
+        static float c_1_total = 0;
+
         // extract time stamp
         timeLaserInfoStamp = msgIn->header.stamp;
         timeLaserInfoCur = msgIn->header.stamp.toSec();
@@ -288,19 +292,39 @@ public:
         static double timeLastProcessing = -1;
         if (timeLaserInfoCur - timeLastProcessing >= mappingProcessInterval)
         {
+            scan_count++;
+
             timeLastProcessing = timeLaserInfoCur;
 
             updateInitialGuess();
 
+            auto a_0 = std::chrono::system_clock::now();
             extractSurroundingKeyFrames();
+            auto b_0 = std::chrono::system_clock::now() - a_0;
+            float c_0 = std::chrono::duration_cast<std::chrono::microseconds>(b_0).count() / 1000.0f;
+            c_0_total += c_0;
 
             downsampleCurrentScan();
 
+            auto a_1 = std::chrono::system_clock::now();
             if (useGPULocalMap) {
                 scan2MapOptimizationWithCUDA();
             } else {
                 scan2MapOptimization();
             }
+            auto b_1 = std::chrono::system_clock::now() - a_1;
+            float c_1 = std::chrono::duration_cast<std::chrono::microseconds>(b_1).count() / 1000.0f;
+            c_1_total += c_1;
+
+            std::cout << "@@@@@@@@@@" << std::endl;
+            std::cout << "scan_count  : " << scan_count << std::endl;
+            std::cout << "duration ms : current extract local map : " << c_0                                  << std::endl;
+            std::cout << "duration ms : current scan to map opt   : " << c_1                                  << std::endl;
+            std::cout << "duration ms : current extract and opt   : " << (c_0 + c_1)                          << std::endl;
+            std::cout << "duration ms : average extract local map : " << c_0_total / scan_count               << std::endl;
+            std::cout << "duration ms : average scan to map opt   : " << c_1_total / scan_count               << std::endl;
+            std::cout << "duration ms : average extract and opt   : " << (c_0_total + c_1_total) / scan_count << std::endl;
+            std::cout << "@@@@@@@@@@" << std::endl;
 
             saveKeyFramesAndFactor();
 
