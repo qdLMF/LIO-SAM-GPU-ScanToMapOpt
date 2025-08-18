@@ -260,14 +260,10 @@ public:
         kdtreeCornerFromMap.reset(new pcl::KdTreeFLANN<PointType>());
         kdtreeSurfFromMap.reset(new pcl::KdTreeFLANN<PointType>());
 
-
-
         laserCloudCornerFromMap_GPU.reset(new pcl::PointCloud<PointType>());
         laserCloudCornerFromMapDS_GPU.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMap_GPU.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMapDS_GPU.reset(new pcl::PointCloud<PointType>());
-
-
 
         for (int i = 0; i < 6; ++i){
             transformTobeMapped[i] = 0;
