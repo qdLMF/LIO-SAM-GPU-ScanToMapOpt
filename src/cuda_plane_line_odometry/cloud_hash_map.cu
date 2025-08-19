@@ -71,7 +71,7 @@ __global__ void kernel_compute_key_start_end(
     int2* key_start_end_
 );
 
-__global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
+__global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int num_unique_hash,
     const int* unique_by_hash_hash_,
     const int* unique_by_hash_hash_idx_,
@@ -84,7 +84,7 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int* from_hash_to_hash_idx_
 );
 
-__global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
+__global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int num_unique_hash,
     int* num_hash_,
     int* num_keys_,
@@ -495,7 +495,7 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
         dim3 num_threads_per_block(NTHREADS_BUILD_MAP);
         dim3 num_blocks_per_grid((num_unique_hash_in_inserted_points + NTHREADS_BUILD_MAP - 1) / NTHREADS_BUILD_MAP);
         if (empty) {
-            kernel_insert_key_to_key_bucket_when_map_is_not_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
+            kernel_insert_key_to_key_bucket_when_map_is_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_hash_in_inserted_points,
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_hash[0])),
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_hash_idx[0])),
@@ -508,7 +508,7 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
                 thrust::raw_pointer_cast(&(dev_from_hash_to_hash_idx[0]))
             );
         } else {
-            kernel_insert_key_to_key_bucket_when_map_is_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
+            kernel_insert_key_to_key_bucket_when_map_is_not_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_hash_in_inserted_points,
                 thrust::raw_pointer_cast(&(dev_num_hash[0])),
                 thrust::raw_pointer_cast(&(dev_num_keys[0])),
@@ -677,7 +677,7 @@ __global__ void kernel_compute_key_start_end(
     key_start_end_[tid] = {key_start, key_end};
 }
 
-__global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
+__global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int num_unique_hash,
     const int* unique_by_hash_hash_,
     const int* unique_by_hash_hash_idx_,
@@ -698,6 +698,10 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int& key_start     = key_start_end.x;
     int& key_end       = key_start_end.y;
     int  num_keys      = min(key_end - key_start, MAX_NUM_KEYS_PER_HASH);
+
+    if (num_keys >= 6) {
+        atomicMax(key_overflow_warning, num_keys);
+    }
 
     key_bucket_key_num_[hash_idx] = num_keys;
 
@@ -720,7 +724,7 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     }
 }
 
-__global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
+__global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int num_unique_hash,
     int* num_hash_,
     int* num_keys_,
