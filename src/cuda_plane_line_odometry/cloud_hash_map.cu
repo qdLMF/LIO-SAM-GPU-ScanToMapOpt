@@ -699,10 +699,6 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int& key_end       = key_start_end.y;
     int  num_keys      = min(key_end - key_start, MAX_NUM_KEYS_PER_HASH);
 
-    if (num_keys >= 6) {
-        atomicMax(key_overflow_warning, num_keys);
-    }
-
     key_bucket_key_num_[hash_idx] = num_keys;
 
     for (int i = 0; i < MAX_NUM_KEYS_PER_HASH; i++) {
