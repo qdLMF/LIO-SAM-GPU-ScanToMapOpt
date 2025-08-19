@@ -34,23 +34,49 @@ CUDAScanToMapOpt::CUDAScanToMapOpt(
     max_size_surf_query(max_size_surf_query_),
     max_size_corn_query(max_size_corn_query_)
 {
-    surf_flag .resize(max_size_surf_query);
-    surf_sel  .resize(max_size_surf_query);
-    surf_nbr_0.resize(max_size_surf_query);
-    surf_nbr_1.resize(max_size_surf_query);
-    surf_nbr_2.resize(max_size_surf_query);
-    surf_nbr_3.resize(max_size_surf_query);
-    surf_nbr_4.resize(max_size_surf_query);
-    surf_coeff.resize(max_size_surf_query);
+    surf_flag .reserve(max_size_surf_query);
+    surf_sel  .reserve(max_size_surf_query);
+    surf_nbr_0.reserve(max_size_surf_query);
+    surf_nbr_1.reserve(max_size_surf_query);
+    surf_nbr_2.reserve(max_size_surf_query);
+    surf_nbr_3.reserve(max_size_surf_query);
+    surf_nbr_4.reserve(max_size_surf_query);
+    surf_coeff.reserve(max_size_surf_query);
 
-    corn_flag .resize(max_size_corn_query);
-    corn_sel  .resize(max_size_corn_query);
-    corn_nbr_0.resize(max_size_corn_query);
-    corn_nbr_1.resize(max_size_corn_query);
-    corn_nbr_2.resize(max_size_corn_query);
-    corn_nbr_3.resize(max_size_corn_query);
-    corn_nbr_4.resize(max_size_corn_query);
-    corn_coeff.resize(max_size_corn_query);
+    surf_flag .resize(max_size_surf_query,                       0);
+    surf_sel  .resize(max_size_surf_query, make_float4(0, 0, 0, 0));
+    surf_nbr_0.resize(max_size_surf_query, make_float4(0, 0, 0, 0));
+    surf_nbr_1.resize(max_size_surf_query, make_float4(0, 0, 0, 0));
+    surf_nbr_2.resize(max_size_surf_query, make_float4(0, 0, 0, 0));
+    surf_nbr_3.resize(max_size_surf_query, make_float4(0, 0, 0, 0));
+    surf_nbr_4.resize(max_size_surf_query, make_float4(0, 0, 0, 0));
+    surf_coeff.resize(max_size_surf_query, make_float4(0, 0, 0, 0));
+
+    corn_flag .reserve(max_size_corn_query);
+    corn_sel  .reserve(max_size_corn_query);
+    corn_nbr_0.reserve(max_size_corn_query);
+    corn_nbr_1.reserve(max_size_corn_query);
+    corn_nbr_2.reserve(max_size_corn_query);
+    corn_nbr_3.reserve(max_size_corn_query);
+    corn_nbr_4.reserve(max_size_corn_query);
+    corn_coeff.reserve(max_size_corn_query);
+
+    corn_flag .resize(max_size_corn_query,                       0);
+    corn_sel  .resize(max_size_corn_query, make_float4(0, 0, 0, 0));
+    corn_nbr_0.resize(max_size_corn_query, make_float4(0, 0, 0, 0));
+    corn_nbr_1.resize(max_size_corn_query, make_float4(0, 0, 0, 0));
+    corn_nbr_2.resize(max_size_corn_query, make_float4(0, 0, 0, 0));
+    corn_nbr_3.resize(max_size_corn_query, make_float4(0, 0, 0, 0));
+    corn_nbr_4.resize(max_size_corn_query, make_float4(0, 0, 0, 0));
+    corn_coeff.resize(max_size_corn_query, make_float4(0, 0, 0, 0));
+
+    surf_and_corn_flag .reserve(max_size_surf_query + max_size_corn_query);
+    surf_and_corn_ori  .reserve(max_size_surf_query + max_size_corn_query);
+    surf_and_corn_coeff.reserve(max_size_surf_query + max_size_corn_query);
+
+    surf_and_corn_flag .resize(max_size_surf_query + max_size_corn_query,                       0);
+    surf_and_corn_ori  .resize(max_size_surf_query + max_size_corn_query, make_float4(0, 0, 0, 0));
+    surf_and_corn_coeff.resize(max_size_surf_query + max_size_corn_query, make_float4(0, 0, 0, 0));
 }
 
 void CUDAScanToMapOpt::Trans6ToTrans3x4() {
@@ -398,15 +424,12 @@ void CUDAScanToMapOpt::MallocForJacAndRes() {
     jac.resize(num_surf_points + num_corn_points, 6);
     res.resize(num_surf_points + num_corn_points, 1);
 
-    surf_and_corn_ori.resize(max_size_surf_query + max_size_corn_query, {0.0, 0.0, 0.0, 0.0});
     thrust::copy(corn_ori.begin(), corn_ori.begin() + num_corn_points, surf_and_corn_ori.begin());
     thrust::copy(surf_ori.begin(), surf_ori.begin() + num_surf_points, surf_and_corn_ori.begin() + num_corn_points);
-
-    surf_and_corn_flag.resize(max_size_surf_query + max_size_corn_query, 0);
+    
     thrust::copy(corn_flag.begin(), corn_flag.begin() + num_corn_points, surf_and_corn_flag.begin());
     thrust::copy(surf_flag.begin(), surf_flag.begin() + num_surf_points, surf_and_corn_flag.begin() + num_corn_points);
-
-    surf_and_corn_coeff.resize(max_size_surf_query + max_size_corn_query, {0.0, 0.0, 0.0, 0.0});
+    
     thrust::copy(corn_coeff.begin(), corn_coeff.begin() + num_corn_points, surf_and_corn_coeff.begin());
     thrust::copy(surf_coeff.begin(), surf_coeff.begin() + num_surf_points, surf_and_corn_coeff.begin() + num_corn_points);
 }

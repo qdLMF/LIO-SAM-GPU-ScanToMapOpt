@@ -38,6 +38,7 @@ struct GridKey {
 
 struct CUDACloudHashMap {
 public :
+    CUDACloudHashMap() = delete;
     explicit CUDACloudHashMap(
         float resolution_, 
         unsigned int max_num_hashes_, 

@@ -24,7 +24,8 @@
 
 struct CUDAScanToMapOpt {
 public :
-    CUDAScanToMapOpt(
+    CUDAScanToMapOpt() = delete;
+    explicit CUDAScanToMapOpt(
         float resolution,
         unsigned int max_num_hashes_, 
         unsigned int max_size_surf_insertion_,

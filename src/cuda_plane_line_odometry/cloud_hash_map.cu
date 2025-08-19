@@ -170,6 +170,49 @@ CUDACloudHashMap::CUDACloudHashMap(
 {
     cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
 
+    // ----------------------------------------------------------------------------------------------------
+    dev_point       .reserve(max_insertion_size);
+    dev_point_backup.reserve(max_insertion_size);
+
+    dev_from_hash_to_hash_idx.reserve(mod);
+
+    dev_key_bucket_key    .reserve(key_bucket_max_size);
+    dev_key_bucket_key_idx.reserve(key_bucket_max_size);
+    dev_key_bucket_key_num.reserve(                mod);
+
+    dev_point_bucket_point    .reserve(point_bucket_max_size);
+    dev_point_bucket_point_num.reserve(  key_bucket_max_size);
+
+    dev_key .reserve(max_insertion_size);
+    dev_hash.reserve(max_insertion_size);
+
+    dev_unique_by_key_key            .reserve(max_insertion_size);
+    dev_unique_by_key_hash           .reserve(max_insertion_size);
+    dev_unique_by_key_point_start    .reserve(max_insertion_size);
+    dev_unique_by_key_point_start_end.reserve(max_insertion_size);
+    dev_unique_by_key_key_idx        .reserve(max_insertion_size);
+
+    dev_unique_by_hash_hash         .reserve(max_insertion_size);
+    dev_unique_by_hash_key_start    .reserve(max_insertion_size);
+    dev_unique_by_hash_key_start_end.reserve(max_insertion_size);
+    dev_unique_by_hash_hash_idx     .reserve(max_insertion_size);
+
+    dev_key_backup .reserve(max_insertion_size);
+    dev_hash_backup.reserve(max_insertion_size);
+
+    dev_src_idx.reserve(max_insertion_size);
+
+    dev_unique_by_key_point_start_end_backup.reserve(max_insertion_size);
+    dev_unique_by_key_key_backup            .reserve(max_insertion_size);
+
+    dev_num_hash.reserve(1);
+    dev_num_keys.reserve(1);
+    // ----------------------------------------------------------------------------------------------------
+
+    // ----------------------------------------------------------------------------------------------------
+    // dev_point       .resize(max_insertion_size); // no need
+    // dev_point_backup.resize(max_insertion_size); // no need
+
     dev_from_hash_to_hash_idx.resize(mod, -1);
 
     dev_key_bucket_key    .resize(key_bucket_max_size, GridKey{0, 0, 0, 1});
@@ -179,30 +222,31 @@ CUDACloudHashMap::CUDACloudHashMap(
     dev_point_bucket_point    .resize(point_bucket_max_size, make_float4(0.0, 0.0, 0.0, 0.0));
     dev_point_bucket_point_num.resize(  key_bucket_max_size,                               0);
 
-    dev_key.resize(max_insertion_size);
-    dev_hash.resize(max_insertion_size);
+    dev_key .resize(max_insertion_size, GridKey{0, 0, 0, 1});
+    dev_hash.resize(max_insertion_size,                  -1);
 
-    dev_unique_by_key_key.resize(max_insertion_size);
-    dev_unique_by_key_hash.resize(max_insertion_size);
-    dev_unique_by_key_point_start.resize(max_insertion_size);
-    dev_unique_by_key_point_start_end.resize(max_insertion_size);
-    dev_unique_by_key_key_idx.resize(max_insertion_size);
+    dev_unique_by_key_key            .resize(max_insertion_size, GridKey{0, 0, 0, 1});
+    dev_unique_by_key_hash           .resize(max_insertion_size,                  -1);
+    dev_unique_by_key_point_start    .resize(max_insertion_size,                  -1);
+    dev_unique_by_key_point_start_end.resize(max_insertion_size,   make_int2(-1, -1));
+    dev_unique_by_key_key_idx        .resize(max_insertion_size,                  -1);
 
-    dev_unique_by_hash_hash.resize(max_insertion_size);
-    dev_unique_by_hash_key_start.resize(max_insertion_size);
-    dev_unique_by_hash_key_start_end.resize(max_insertion_size);
-    dev_unique_by_hash_hash_idx.resize(max_insertion_size);
+    dev_unique_by_hash_hash         .resize(max_insertion_size,                -1);
+    dev_unique_by_hash_key_start    .resize(max_insertion_size,                -1);
+    dev_unique_by_hash_key_start_end.resize(max_insertion_size, make_int2(-1, -1));
+    dev_unique_by_hash_hash_idx     .resize(max_insertion_size,                -1);
 
-    dev_key_backup.resize(max_insertion_size);
-    dev_hash_backup.resize(max_insertion_size);
+    dev_key_backup .resize(max_insertion_size, GridKey{0, 0, 0, 1});
+    dev_hash_backup.resize(max_insertion_size,                  -1);
 
-    dev_src_idx.resize(max_insertion_size);
+    dev_src_idx.resize(max_insertion_size, -1);
 
-    dev_unique_by_key_point_start_end_backup.resize(max_insertion_size);
-    dev_unique_by_key_key_backup.resize(max_insertion_size);
+    dev_unique_by_key_point_start_end_backup.resize(max_insertion_size,   make_int2(-1, -1));
+    dev_unique_by_key_key_backup            .resize(max_insertion_size, GridKey{0, 0, 0, 1});
 
-    dev_num_hash.resize(1);
-    dev_num_keys.resize(1);
+    dev_num_hash.resize(1, 0);
+    dev_num_keys.resize(1, 0);
+    // ----------------------------------------------------------------------------------------------------
 
     Reset();
 }
@@ -226,34 +270,34 @@ void CUDACloudHashMap::Sync() {
 }
 
 void CUDACloudHashMap::ClearBuckets() {
-    thrust::fill(dev_from_hash_to_hash_idx.begin(), dev_from_hash_to_hash_idx.end(), -1);
-    thrust::fill(dev_key_bucket_key_num.begin(), dev_key_bucket_key_num.end(), 0);
-    thrust::fill(dev_point_bucket_point_num.begin(), dev_point_bucket_point_num.end(), 0);
+    thrust::fill(dev_from_hash_to_hash_idx .begin(), dev_from_hash_to_hash_idx .end(), -1);
+    thrust::fill(dev_key_bucket_key_num    .begin(), dev_key_bucket_key_num    .end(),  0);
+    thrust::fill(dev_point_bucket_point_num.begin(), dev_point_bucket_point_num.end(),  0);
 }
 
 // thrust开销大，但没必要，以下所有向量在读取之前都会被写入正确值，所以不需要调用该函数
 void CUDACloudHashMap::ClearTempVectors() {
-    thrust::fill(dev_key.begin(), dev_key.end(), GridKey{0, 0, 0, 1});
-    thrust::fill(dev_hash.begin(), dev_hash.end(), -1);
+    thrust::fill(dev_key .begin(), dev_key .end(), GridKey{0, 0, 0, 1});
+    thrust::fill(dev_hash.begin(), dev_hash.end(),                  -1);
 
-    thrust::fill(dev_unique_by_key_key.begin(), dev_unique_by_key_key.end(), GridKey{0, 0, 0, 1});
-    thrust::fill(dev_unique_by_key_hash.begin(), dev_unique_by_key_hash.end(), -1);
-    thrust::fill(dev_unique_by_key_point_start.begin(), dev_unique_by_key_point_start.end(), -1);
-    thrust::fill(dev_unique_by_key_point_start_end.begin(), dev_unique_by_key_point_start_end.end(), make_int2(-1, -1));
-    thrust::fill(dev_unique_by_key_key_idx.begin(), dev_unique_by_key_key_idx.end(), -1);
+    thrust::fill(dev_unique_by_key_key            .begin(), dev_unique_by_key_key            .end(), GridKey{0, 0, 0, 1});
+    thrust::fill(dev_unique_by_key_hash           .begin(), dev_unique_by_key_hash           .end(),                  -1);
+    thrust::fill(dev_unique_by_key_point_start    .begin(), dev_unique_by_key_point_start    .end(),                  -1);
+    thrust::fill(dev_unique_by_key_point_start_end.begin(), dev_unique_by_key_point_start_end.end(),   make_int2(-1, -1));
+    thrust::fill(dev_unique_by_key_key_idx        .begin(), dev_unique_by_key_key_idx        .end(),                  -1);
 
-    thrust::fill(dev_unique_by_hash_hash.begin(), dev_unique_by_hash_hash.end(), -1);
-    thrust::fill(dev_unique_by_hash_key_start.begin(), dev_unique_by_hash_key_start.end(), -1);
+    thrust::fill(dev_unique_by_hash_hash         .begin(), dev_unique_by_hash_hash         .end(),                -1);
+    thrust::fill(dev_unique_by_hash_key_start    .begin(), dev_unique_by_hash_key_start    .end(),                -1);
     thrust::fill(dev_unique_by_hash_key_start_end.begin(), dev_unique_by_hash_key_start_end.end(), make_int2(-1, -1));
-    thrust::fill(dev_unique_by_hash_hash_idx.begin(), dev_unique_by_hash_hash_idx.end(), -1);
+    thrust::fill(dev_unique_by_hash_hash_idx     .begin(), dev_unique_by_hash_hash_idx     .end(),                -1);
 
     thrust::fill(dev_src_idx.begin(), dev_src_idx.end(), -1);
 
-    thrust::fill(dev_key_backup.begin(), dev_key_backup.end(), GridKey{0, 0, 0, 1});
-    thrust::fill(dev_hash_backup.begin(), dev_hash_backup.end(), -1);
+    thrust::fill(dev_key_backup .begin(), dev_key_backup .end(), GridKey{0, 0, 0, 1});
+    thrust::fill(dev_hash_backup.begin(), dev_hash_backup.end(),                  -1);
 
-    thrust::fill(dev_unique_by_key_point_start_end_backup.begin(), dev_unique_by_key_point_start_end_backup.end(), make_int2(-1, -1));
-    thrust::fill(dev_unique_by_key_key_backup.begin(), dev_unique_by_key_key_backup.end(), GridKey{0, 0, 0, 1});
+    thrust::fill(dev_unique_by_key_point_start_end_backup.begin(), dev_unique_by_key_point_start_end_backup.end(),   make_int2(-1, -1));
+    thrust::fill(dev_unique_by_key_key_backup            .begin(), dev_unique_by_key_key_backup            .end(), GridKey{0, 0, 0, 1});
 }
 
 void CUDACloudHashMap::Reset() {
@@ -280,7 +324,7 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
     }
 
     dev_point = host_point;
-    dev_point_backup.resize(dev_point.size(), {0.0, 0.0, 0.0, 0.0});
+    dev_point_backup.resize(dev_point.size(), make_float4(0, 0, 0, 0));
 
     thrust::counting_iterator<int> c_iter_1(0);
     thrust::counting_iterator<int> c_iter_2(0);

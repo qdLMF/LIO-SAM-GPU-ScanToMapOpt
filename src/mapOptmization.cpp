@@ -166,7 +166,7 @@ public:
     thrust::host_vector<float4> surf_pts_3d;
     thrust::host_vector<float4> corner_map_3d;
     thrust::host_vector<float4> corner_pts_3d;
-    CUDAScanToMapOpt cuda_scan_to_map_opt;
+    std::unique_ptr<CUDAScanToMapOpt> cuda_scan_to_map_opt;
     std::set<int> gpu_local_map_scan_idx_set;
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMap_GPU;
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMapDS_GPU;
@@ -178,15 +178,7 @@ public:
     bool reset_gpu_local_map;
     // cuda_plane_line_odometry
 
-    mapOptimization() : 
-        cuda_scan_to_map_opt(
-            gpuLocalVoxelSize, 
-            gpuLocalMaxNumHashes, 
-            gpuLocalMaxNumSurfPointsPerInsertion, 
-            gpuLocalMaxNumCornPointsPerInsertion, 
-            gpuLocalMaxNumSurfPointsPerQuery, 
-            gpuLocalMaxNumCornPointsPerQuery
-        )
+    mapOptimization()
     {
         ISAM2Params parameters;
         parameters.relinearizeThreshold = 0.1;
@@ -270,6 +262,27 @@ public:
         }
 
         matP = cv::Mat(6, 6, CV_32F, cv::Scalar::all(0));
+
+        if (useGPULocalMap) {
+            cuda_scan_to_map_opt = std::make_unique<CUDAScanToMapOpt>(
+                gpuLocalVoxelSize, 
+                gpuLocalMaxNumHashes, 
+                gpuLocalMaxNumSurfPointsPerInsertion, 
+                gpuLocalMaxNumCornPointsPerInsertion, 
+                gpuLocalMaxNumSurfPointsPerQuery, 
+                gpuLocalMaxNumCornPointsPerQuery
+            );
+
+            surf_map_3d  .reserve(gpuLocalMaxNumSurfPointsPerInsertion);
+            surf_pts_3d  .reserve(gpuLocalMaxNumSurfPointsPerQuery    );
+            corner_map_3d.reserve(gpuLocalMaxNumCornPointsPerInsertion);
+            corner_pts_3d.reserve(gpuLocalMaxNumCornPointsPerQuery    );
+
+            surf_map_3d  .resize(gpuLocalMaxNumSurfPointsPerInsertion);
+            surf_pts_3d  .resize(gpuLocalMaxNumSurfPointsPerQuery    );
+            corner_map_3d.resize(gpuLocalMaxNumCornPointsPerInsertion);
+            corner_pts_3d.resize(gpuLocalMaxNumCornPointsPerQuery    );
+        }
     }
 
     void laserCloudInfoHandler(const lio_sam::cloud_infoConstPtr& msgIn)
@@ -943,7 +956,10 @@ public:
 
     void extractCloud(pcl::PointCloud<PointType>::Ptr cloudToExtract)
     {
-        reset_gpu_local_map = cuda_scan_to_map_opt.opt_count >= gpuLocalMapResetFreq || laserCloudMapContainer.empty();
+        reset_gpu_local_map = \
+        useGPULocalMap
+        ? (cuda_scan_to_map_opt->opt_count >= gpuLocalMapResetFreq || laserCloudMapContainer.empty())
+        : false;
         if (reset_gpu_local_map) {
             gpu_local_map_scan_idx_set.clear();
         }
@@ -1476,6 +1492,10 @@ public:
             printf("opt_count : %d \n", opt_count);
 
             auto now_one_frame = std::chrono::system_clock::now();
+            assert(laserCloudSurfFromMapDS_GPU  ->size() <= gpuLocalMaxNumSurfPointsPerInsertion);
+            assert(laserCloudSurfLastDS         ->size() <= gpuLocalMaxNumSurfPointsPerQuery    );
+            assert(laserCloudCornerFromMapDS_GPU->size() <= gpuLocalMaxNumCornPointsPerInsertion);
+            assert(laserCloudCornerLastDS       ->size() <= gpuLocalMaxNumCornPointsPerQuery    );
 
             // cuda_plane_line_odometry
             surf_map_3d.resize(laserCloudSurfFromMapDS_GPU->size(), make_float4(0.0, 0.0, 0.0, 0.0));
@@ -1497,12 +1517,6 @@ public:
                 };
             }
 
-            // 如果无需对比v0和v1的地图更新是否一致：
-            //     如果是增量地图更新，就是【不带DS，带_GPU】，也可以是【带DS，带_GPU】（这样地图点会多一些）
-            //     如果不是增量地图更新，就是【带DS，不带_GPU】
-            // 如果需要对比v0和v1的地图更新是否一致，就要排除filter的影响，所以使用的是非降采样的map点云
-            //     v1的地图点用的是【不带DS，带_GPU】，这是新增的地图点
-            //     v0的地图点用的是【不带DS，不带_GPU】，这是全部的地图点
             corner_map_3d.resize(laserCloudCornerFromMapDS_GPU->size(), make_float4(0.0, 0.0, 0.0, 0.0));
             for(int i = 0; i < laserCloudCornerFromMapDS_GPU->size(); i++) {
                 corner_map_3d[i] = { 
@@ -1535,45 +1549,45 @@ public:
 
             if (reset_gpu_local_map) {
                 printf("reset_gpu_local_map : true \n");
-                cuda_scan_to_map_opt.ResetSurfAndCornMap();
+                cuda_scan_to_map_opt->ResetSurfAndCornMap();
             } else {
                 printf("reset_gpu_local_map : false \n");
             }
-            cuda_scan_to_map_opt.InsertSurfAndCornToHashMap(surf_map_3d, corner_map_3d);
+            cuda_scan_to_map_opt->InsertSurfAndCornToHashMap(surf_map_3d, corner_map_3d);
             
             auto dur_build_hashmap = std::chrono::system_clock::now() - now_build_hashmap;
             total_dur_build_hashmap += dur_build_hashmap;
 
 
-            cuda_scan_to_map_opt.SetTrans6DOFInit(trans6_init);
-            cuda_scan_to_map_opt.SetSurfPoints(surf_pts_3d);
-            cuda_scan_to_map_opt.SetCornPoints(corner_pts_3d);
-            while( !(cuda_scan_to_map_opt.iter_count >= 30 || cuda_scan_to_map_opt.converged) ) {
-                cuda_scan_to_map_opt.TransformSurfAndCornPoints();
+            cuda_scan_to_map_opt->SetTrans6DOFInit(trans6_init);
+            cuda_scan_to_map_opt->SetSurfPoints(surf_pts_3d);
+            cuda_scan_to_map_opt->SetCornPoints(corner_pts_3d);
+            while( !(cuda_scan_to_map_opt->iter_count >= 30 || cuda_scan_to_map_opt->converged) ) {
+                cuda_scan_to_map_opt->TransformSurfAndCornPoints();
 
                 KNN_count++;
                 auto now_KNN_search = std::chrono::system_clock::now();
 
-                cuda_scan_to_map_opt.SearchSurfAndCornPointsWithHashMap();
+                cuda_scan_to_map_opt->SearchSurfAndCornPointsWithHashMap();
 
                 auto dur_KNN_search = std::chrono::system_clock::now() - now_KNN_search;
                 total_dur_KNN_search += dur_KNN_search;
 
 
-                cuda_scan_to_map_opt.CalcSurfAndCornCoeff();
-                cuda_scan_to_map_opt.ComputeJacAndRes();
-                cuda_scan_to_map_opt.UpdateTranform();
+                cuda_scan_to_map_opt->CalcSurfAndCornCoeff();
+                cuda_scan_to_map_opt->ComputeJacAndRes();
+                cuda_scan_to_map_opt->UpdateTranform();
             }
-            cuda_scan_to_map_opt.opt_count++;
-            cuda_scan_to_map_opt.PrintStates();
-            printf("cuda_scan_to_map_opt.iter_count : %d \n", cuda_scan_to_map_opt.iter_count);
+            cuda_scan_to_map_opt->opt_count++;
+            cuda_scan_to_map_opt->PrintStates();
+            printf("cuda_scan_to_map_opt->iter_count : %d \n", cuda_scan_to_map_opt->iter_count);
 
-            transformTobeMapped[0] = cuda_scan_to_map_opt.trans6[0];
-            transformTobeMapped[1] = cuda_scan_to_map_opt.trans6[1];
-            transformTobeMapped[2] = cuda_scan_to_map_opt.trans6[2];
-            transformTobeMapped[3] = cuda_scan_to_map_opt.trans6[3];
-            transformTobeMapped[4] = cuda_scan_to_map_opt.trans6[4];
-            transformTobeMapped[5] = cuda_scan_to_map_opt.trans6[5];
+            transformTobeMapped[0] = cuda_scan_to_map_opt->trans6[0];
+            transformTobeMapped[1] = cuda_scan_to_map_opt->trans6[1];
+            transformTobeMapped[2] = cuda_scan_to_map_opt->trans6[2];
+            transformTobeMapped[3] = cuda_scan_to_map_opt->trans6[3];
+            transformTobeMapped[4] = cuda_scan_to_map_opt->trans6[4];
+            transformTobeMapped[5] = cuda_scan_to_map_opt->trans6[5];
 
             auto dur_one_frame = std::chrono::system_clock::now() - now_one_frame;
             total_dur_one_frame += dur_one_frame;
