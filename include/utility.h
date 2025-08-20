@@ -152,14 +152,16 @@ public:
     float globalMapVisualizationLeafSize;
 
     // GPU Local Map
-    bool useGPULocalMap;
-    int gpuLocalMapResetFreq;
-    int gpuLocalMaxNumSurfPointsPerInsertion;
-    int gpuLocalMaxNumCornPointsPerInsertion;
-    int gpuLocalMaxNumSurfPointsPerQuery;
-    int gpuLocalMaxNumCornPointsPerQuery;
-    float gpuLocalVoxelSize;
-    int gpuLocalMaxNumHashes;
+    bool  useGPULocalMap;
+    int   gpuLocalMapResetFreq;
+    int   gpuLocalMapMaxNumSurfPointsPerInsertion;
+    int   gpuLocalMapMaxNumCornPointsPerInsertion;
+    int   gpuLocalMapMaxNumSurfPointsPerQuery;
+    int   gpuLocalMapMaxNumCornPointsPerQuery;
+    float gpuLocalMapVoxelSize;
+    int   gpuLocalMapMOD;
+    int   gpuLocalMapSurfReductionFactor;
+    int   gpuLocalMapCornReductionFactor;
 
     ParamServer()
     {
@@ -252,14 +254,16 @@ public:
         nh.param<float>("lio_sam/globalMapVisualizationPoseDensity", globalMapVisualizationPoseDensity, 10.0);
         nh.param<float>("lio_sam/globalMapVisualizationLeafSize", globalMapVisualizationLeafSize, 1.0);
 
-        nh.param<bool>("lio_sam/useGPULocalMap", useGPULocalMap, false);
-        nh.param<int>("lio_sam/gpuLocalMapResetFreq", gpuLocalMapResetFreq, 10);
-        nh.param<int>("lio_sam/gpuLocalMaxNumSurfPointsPerInsertion", gpuLocalMaxNumSurfPointsPerInsertion, 204800);
-        nh.param<int>("lio_sam/gpuLocalMaxNumCornPointsPerInsertion", gpuLocalMaxNumCornPointsPerInsertion, 102400);
-        nh.param<int>("lio_sam/gpuLocalMaxNumSurfPointsPerQuery", gpuLocalMaxNumSurfPointsPerQuery, 204800);
-        nh.param<int>("lio_sam/gpuLocalMaxNumCornPointsPerQuery", gpuLocalMaxNumCornPointsPerQuery, 10240);
-        nh.param<float>("lio_sam/gpuLocalVoxelSize", gpuLocalVoxelSize, 0.5);
-        nh.param<int>("lio_sam/gpuLocalMaxNumHashes", gpuLocalMaxNumHashes, 100000);
+        nh.param<bool >( "lio_sam/useGPULocalMap"                          , useGPULocalMap                          , false  );
+        nh.param<int  >( "lio_sam/gpuLocalMapResetFreq"                    , gpuLocalMapResetFreq                    , 10     );
+        nh.param<int  >( "lio_sam/gpuLocalMapMaxNumSurfPointsPerInsertion" , gpuLocalMapMaxNumSurfPointsPerInsertion , 204800 );
+        nh.param<int  >( "lio_sam/gpuLocalMapMaxNumCornPointsPerInsertion" , gpuLocalMapMaxNumCornPointsPerInsertion , 102400 );
+        nh.param<int  >( "lio_sam/gpuLocalMapMaxNumSurfPointsPerQuery"     , gpuLocalMapMaxNumSurfPointsPerQuery     , 204800 );
+        nh.param<int  >( "lio_sam/gpuLocalMapMaxNumCornPointsPerQuery"     , gpuLocalMapMaxNumCornPointsPerQuery     , 10240  );
+        nh.param<float>( "lio_sam/gpuLocalMapVoxelSize"                    , gpuLocalMapVoxelSize                    , 0.5    );
+        nh.param<int  >( "lio_sam/gpuLocalMapMOD"                          , gpuLocalMapMOD                          , 100000 );
+        nh.param<int  >( "lio_sam/gpuLocalMapSurfReductionFactor"          , gpuLocalMapSurfReductionFactor          , 4      );
+        nh.param<int  >( "lio_sam/gpuLocalMapCornReductionFactor"          , gpuLocalMapCornReductionFactor          , 4      );
 
         usleep(100);
     }

@@ -36,13 +36,14 @@ struct GridKey {
     GridKey& operator=(const GridKey& right) = default;
 };
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int REDUCTION_FACTOR>
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
 struct CUDACloudHashMap {
 public :
     CUDACloudHashMap() = delete;
     explicit CUDACloudHashMap(
         float resolution_, 
-        unsigned int max_num_hashes_, 
+        unsigned int mod_, 
+        unsigned int reduction_factor_, 
         unsigned int max_insertion_size_
     );
     ~CUDACloudHashMap();

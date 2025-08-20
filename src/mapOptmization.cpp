@@ -265,23 +265,25 @@ public:
 
         if (useGPULocalMap) {
             cuda_scan_to_map_opt = std::make_unique<CUDAScanToMapOpt>(
-                gpuLocalVoxelSize, 
-                gpuLocalMaxNumHashes, 
-                gpuLocalMaxNumSurfPointsPerInsertion, 
-                gpuLocalMaxNumCornPointsPerInsertion, 
-                gpuLocalMaxNumSurfPointsPerQuery, 
-                gpuLocalMaxNumCornPointsPerQuery
+                gpuLocalMapVoxelSize, 
+                gpuLocalMapMOD, 
+                gpuLocalMapSurfReductionFactor, 
+                gpuLocalMapCornReductionFactor, 
+                gpuLocalMapMaxNumSurfPointsPerInsertion, 
+                gpuLocalMapMaxNumCornPointsPerInsertion, 
+                gpuLocalMapMaxNumSurfPointsPerQuery, 
+                gpuLocalMapMaxNumCornPointsPerQuery
             );
 
-            surf_map_3d  .reserve(gpuLocalMaxNumSurfPointsPerInsertion);
-            surf_pts_3d  .reserve(gpuLocalMaxNumSurfPointsPerQuery    );
-            corner_map_3d.reserve(gpuLocalMaxNumCornPointsPerInsertion);
-            corner_pts_3d.reserve(gpuLocalMaxNumCornPointsPerQuery    );
+            surf_map_3d  .reserve(gpuLocalMapMaxNumSurfPointsPerInsertion);
+            surf_pts_3d  .reserve(gpuLocalMapMaxNumSurfPointsPerQuery    );
+            corner_map_3d.reserve(gpuLocalMapMaxNumCornPointsPerInsertion);
+            corner_pts_3d.reserve(gpuLocalMapMaxNumCornPointsPerQuery    );
 
-            surf_map_3d  .resize(gpuLocalMaxNumSurfPointsPerInsertion);
-            surf_pts_3d  .resize(gpuLocalMaxNumSurfPointsPerQuery    );
-            corner_map_3d.resize(gpuLocalMaxNumCornPointsPerInsertion);
-            corner_pts_3d.resize(gpuLocalMaxNumCornPointsPerQuery    );
+            surf_map_3d  .resize(gpuLocalMapMaxNumSurfPointsPerInsertion);
+            surf_pts_3d  .resize(gpuLocalMapMaxNumSurfPointsPerQuery    );
+            corner_map_3d.resize(gpuLocalMapMaxNumCornPointsPerInsertion);
+            corner_pts_3d.resize(gpuLocalMapMaxNumCornPointsPerQuery    );
         }
     }
 
@@ -1492,10 +1494,10 @@ public:
             printf("opt_count : %d \n", opt_count);
 
             auto now_one_frame = std::chrono::system_clock::now();
-            assert(laserCloudSurfFromMapDS_GPU  ->size() <= gpuLocalMaxNumSurfPointsPerInsertion);
-            assert(laserCloudSurfLastDS         ->size() <= gpuLocalMaxNumSurfPointsPerQuery    );
-            assert(laserCloudCornerFromMapDS_GPU->size() <= gpuLocalMaxNumCornPointsPerInsertion);
-            assert(laserCloudCornerLastDS       ->size() <= gpuLocalMaxNumCornPointsPerQuery    );
+            assert(laserCloudSurfFromMapDS_GPU  ->size() <= gpuLocalMapMaxNumSurfPointsPerInsertion);
+            assert(laserCloudSurfLastDS         ->size() <= gpuLocalMapMaxNumSurfPointsPerQuery    );
+            assert(laserCloudCornerFromMapDS_GPU->size() <= gpuLocalMapMaxNumCornPointsPerInsertion);
+            assert(laserCloudCornerLastDS       ->size() <= gpuLocalMapMaxNumCornPointsPerQuery    );
 
             // cuda_plane_line_odometry
             surf_map_3d.resize(laserCloudSurfFromMapDS_GPU->size(), make_float4(0.0, 0.0, 0.0, 0.0));

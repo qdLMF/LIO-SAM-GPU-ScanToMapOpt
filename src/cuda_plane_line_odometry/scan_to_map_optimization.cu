@@ -12,19 +12,23 @@
 
 CUDAScanToMapOpt::CUDAScanToMapOpt(
     float resolution_,
-    unsigned int max_num_hashes_, 
+    unsigned int mod_, 
+    unsigned int surf_reduction_factor_, 
+    unsigned int corn_reduction_factor_, 
     unsigned int max_size_surf_insertion_,
     unsigned int max_size_corn_insertion_,
     unsigned int max_size_surf_query_,
     unsigned int max_size_corn_query_
 ) : surf_hash_map(
         resolution_,
-        max_num_hashes_,
+        mod_,
+        surf_reduction_factor_,
         max_size_surf_insertion_
     ),
     corn_hash_map(
         resolution_,
-        max_num_hashes_,
+        mod_,
+        corn_reduction_factor_,
         max_size_corn_insertion_
     ), 
     jac(max_size_surf_query_ + max_size_corn_query_, 6),

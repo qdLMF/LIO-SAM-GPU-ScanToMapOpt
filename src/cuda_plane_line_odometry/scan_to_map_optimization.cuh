@@ -27,7 +27,9 @@ public :
     CUDAScanToMapOpt() = delete;
     explicit CUDAScanToMapOpt(
         float resolution,
-        unsigned int max_num_hashes_, 
+        unsigned int mod_, 
+        unsigned int surf_reduction_factor_, 
+        unsigned int corn_reduction_factor_, 
         unsigned int max_size_surf_insertion_,
         unsigned int max_size_corn_insertion_,
         unsigned int max_size_surf_query_,
@@ -35,18 +37,14 @@ public :
     );
 
 public :
-    // template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int REDUCTION_FACTOR>
+    // template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
     // available template parameters : 
-    // < 8, 16, 4>
-    // < 8, 32, 4>
-    // <16, 16, 4>
-    // <16, 32, 4>
-    // < 8, 16, 8>
-    // < 8, 32, 8>
-    // <16, 16, 8>
-    // <16, 32, 8>
-    CUDACloudHashMap<16, 32, 4> surf_hash_map;
-    CUDACloudHashMap< 8, 16, 8> corn_hash_map;
+    // < 8, 16>
+    // < 8, 32>
+    // <16, 16>
+    // <16, 32>
+    CUDACloudHashMap<16, 32> surf_hash_map;
+    CUDACloudHashMap< 8, 16> corn_hash_map;
     PointAssociateToMapKernel surf_associate_to_map;
     PointAssociateToMapKernel corn_associate_to_map;
     CalcSurfCoeffKernel calc_surf_coeff;

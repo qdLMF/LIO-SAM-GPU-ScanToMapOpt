@@ -52007,12 +52007,12 @@ PARAMETERS
  * /lio_sam/gpsCovThreshold: 2.0
  * /lio_sam/gpsTopic: odometry/gpsz
  * /lio_sam/gpuLocalMapResetFreq: 50
- * /lio_sam/gpuLocalMaxNumCornPointsPerInsertion: 102400
- * /lio_sam/gpuLocalMaxNumCornPointsPerQuery: 10240
- * /lio_sam/gpuLocalMaxNumHashes: 100000
- * /lio_sam/gpuLocalMaxNumSurfPointsPerInsertion: 204800
- * /lio_sam/gpuLocalMaxNumSurfPointsPerQuery: 20480
- * /lio_sam/gpuLocalVoxelSize: 0.5
+ * /lio_sam/gpuLocalMapMaxNumCornPointsPerInsertion: 102400
+ * /lio_sam/gpuLocalMapMaxNumCornPointsPerQuery: 10240
+ * /lio_sam/gpuLocalMapMOD: 100000
+ * /lio_sam/gpuLocalMapMaxNumSurfPointsPerInsertion: 204800
+ * /lio_sam/gpuLocalMapMaxNumSurfPointsPerQuery: 20480
+ * /lio_sam/gpuLocalMapVoxelSize: 0.5
  * /lio_sam/historyKeyframeFitnessScore: 0.3
  * /lio_sam/historyKeyframeSearchNum: 25
  * /lio_sam/historyKeyframeSearchRadius: 15.0
