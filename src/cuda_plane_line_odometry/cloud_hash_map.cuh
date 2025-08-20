@@ -36,7 +36,7 @@ struct GridKey {
     GridKey& operator=(const GridKey& right) = default;
 };
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
 struct CUDACloudHashMap {
 public :
     CUDACloudHashMap() = delete;
@@ -114,6 +114,7 @@ public :
     const unsigned int max_num_points_per_key;
     const unsigned int key_bucket_max_size;
     const unsigned int point_bucket_max_size;
+    const unsigned int point_bucket_reduction_factor;
     const unsigned int max_insertion_size;
     cudaStream_t stream;
     int num_keys;

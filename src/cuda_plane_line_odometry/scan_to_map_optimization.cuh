@@ -35,13 +35,18 @@ public :
     );
 
 public :
+    // template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
     // available template parameters : 
-    // < 8, 16>
-    // < 8, 32>
-    // <16, 16>
-    // <16, 32>
-    CUDACloudHashMap<16, 32> surf_hash_map;
-    CUDACloudHashMap< 8, 16> corn_hash_map;
+    // < 8, 16, 4>
+    // < 8, 32, 4>
+    // <16, 16, 4>
+    // <16, 32, 4>
+    // < 8, 16, 8>
+    // < 8, 32, 8>
+    // <16, 16, 8>
+    // <16, 32, 8>
+    CUDACloudHashMap<16, 32, 4> surf_hash_map;
+    CUDACloudHashMap< 8, 16, 4> corn_hash_map;
     PointAssociateToMapKernel surf_associate_to_map;
     PointAssociateToMapKernel corn_associate_to_map;
     CalcSurfCoeffKernel calc_surf_coeff;

@@ -25,6 +25,8 @@
 #define NTHREADS_BUILD_MAP  256 // 256
 #define NTHREADS_KNN_SEARCH 256 // 256
 
+// #define POINT_BUCKET_REDUCTION_FACTOR 4
+
 // ----------
 
 __device__ __host__ GridKey key_func(
@@ -162,8 +164,8 @@ __global__ void kernel_rearrange_unique_by_key(
 
 // ----------
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::CUDACloudHashMap(
     float resolution_, 
     unsigned int max_num_hashes_, 
     unsigned int max_insertion_size_
@@ -173,7 +175,8 @@ CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
     max_num_keys_per_hash(KEY_BUCKET_SIZE), 
     max_num_points_per_key(POINT_BUCKET_SIZE), 
     key_bucket_max_size(max_num_hashes_ * KEY_BUCKET_SIZE),
-    point_bucket_max_size(max_num_hashes_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE),
+    point_bucket_max_size(max_num_hashes_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE / POINT_BUCKET_REDUCTION_FACTOR),
+    point_bucket_reduction_factor(POINT_BUCKET_REDUCTION_FACTOR),
     max_insertion_size(max_insertion_size_)
 {
     cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
@@ -263,14 +266,14 @@ CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
     Reset();
 }
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::~CUDACloudHashMap() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::~CUDACloudHashMap() {
     cudaStreamSynchronize(stream);
     cudaStreamDestroy(stream);
 }
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::SyncAfterInsertion() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::SyncAfterInsertion() {
     cudaStreamSynchronize(stream);
 
     num_hash = dev_num_hash[0];
@@ -280,21 +283,21 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::SyncAfterInsertion() 
     // ClearTempVectors();
 }
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Sync() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::Sync() {
     cudaStreamSynchronize(stream);
 }
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::ClearBuckets() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::ClearBuckets() {
     thrust::fill(dev_from_hash_to_hash_idx .begin(), dev_from_hash_to_hash_idx .end(), -1);
     thrust::fill(dev_key_bucket_key_num    .begin(), dev_key_bucket_key_num    .end(),  0);
     thrust::fill(dev_point_bucket_point_num.begin(), dev_point_bucket_point_num.end(),  0);
 }
 
 // 开销大，但没必要，以下所有向量在读取之前都会被写入正确值，所以不需要调用该函数
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::ClearTempVectors() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::ClearTempVectors() {
     thrust::fill(dev_key .begin(), dev_key .end(), GridKey{0, 0, 0, 1});
     thrust::fill(dev_hash.begin(), dev_hash.end(),                  -1);
 
@@ -318,8 +321,8 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::ClearTempVectors() {
     thrust::fill(dev_unique_by_key_key_backup            .begin(), dev_unique_by_key_key_backup            .end(), GridKey{0, 0, 0, 1});
 }
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Reset() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::Reset() {
     cudaStreamSynchronize(stream);
 
     dev_num_hash[0] = 0;
@@ -335,8 +338,8 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Reset() {
     // ClearTempVectors();
 }
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::InsertV2(const thrust::host_vector<float4> &host_point) {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::InsertV2(const thrust::host_vector<float4> &host_point) {
     if (host_point.empty()) {
         num_inserted_points = 0;
         num_unique_keys_in_inserted_points = 0;
@@ -582,8 +585,8 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::InsertV2(const thrust
     }
 }
 
-template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Query(
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int POINT_BUCKET_REDUCTION_FACTOR>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE, POINT_BUCKET_REDUCTION_FACTOR>::Query(
     const thrust::device_vector<float4>& cloud_query_3d,
     thrust::device_vector<char>& flag,
     thrust::device_vector<float4>& nbr_0,
@@ -616,10 +619,14 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Query(
         );
     }
 }
-template struct CUDACloudHashMap< 8, 16>;
-template struct CUDACloudHashMap< 8, 32>;
-template struct CUDACloudHashMap<16, 16>;
-template struct CUDACloudHashMap<16, 32>;
+template struct CUDACloudHashMap< 8, 16, 4>;
+template struct CUDACloudHashMap< 8, 32, 4>;
+template struct CUDACloudHashMap<16, 16, 4>;
+template struct CUDACloudHashMap<16, 32, 4>;
+template struct CUDACloudHashMap< 8, 16, 8>;
+template struct CUDACloudHashMap< 8, 32, 8>;
+template struct CUDACloudHashMap<16, 16, 8>;
+template struct CUDACloudHashMap<16, 32, 8>;
 
 // ----------
 
