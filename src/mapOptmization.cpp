@@ -958,10 +958,20 @@ public:
 
     void extractCloud(pcl::PointCloud<PointType>::Ptr cloudToExtract)
     {
-        reset_gpu_local_map = \
-        useGPULocalMap
-        ? (cuda_scan_to_map_opt->opt_count >= gpuLocalMapResetFreq || laserCloudMapContainer.empty())
-        : false;
+        if (useGPULocalMap) {
+            reset_gpu_local_map = \
+               (float(cuda_scan_to_map_opt->surf_hash_map.num_hash            ) / cuda_scan_to_map_opt->surf_hash_map.max_num_hash         ) >= 0.75
+            || (float(cuda_scan_to_map_opt->surf_hash_map.num_keys            ) / cuda_scan_to_map_opt->surf_hash_map.max_num_keys         ) >= 0.75
+            || (float(cuda_scan_to_map_opt->surf_hash_map.key_overflow_warning) / cuda_scan_to_map_opt->surf_hash_map.max_num_keys_per_hash) >= 0.75
+            || (float(cuda_scan_to_map_opt->corn_hash_map.num_hash            ) / cuda_scan_to_map_opt->corn_hash_map.max_num_hash         ) >= 0.75
+            || (float(cuda_scan_to_map_opt->corn_hash_map.num_keys            ) / cuda_scan_to_map_opt->corn_hash_map.max_num_keys         ) >= 0.75
+            || (float(cuda_scan_to_map_opt->corn_hash_map.key_overflow_warning) / cuda_scan_to_map_opt->corn_hash_map.max_num_keys_per_hash) >= 0.75
+            || cuda_scan_to_map_opt->opt_count >= gpuLocalMapResetFreq 
+            || laserCloudMapContainer.empty();
+        } else {
+            reset_gpu_local_map = false;
+        }
+
         if (reset_gpu_local_map) {
             gpu_local_map_scan_idx_set.clear();
         }
