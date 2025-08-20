@@ -111,7 +111,7 @@ public :
     const float resolution;
     const unsigned int mod;
     const unsigned int reduction_factor;
-    const unsigned int max_num_hashes;
+    const unsigned int max_num_hash;
     const unsigned int max_num_keys;
     const unsigned int max_num_keys_per_hash;
     const unsigned int max_num_points_per_key;

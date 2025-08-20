@@ -518,21 +518,21 @@ void CUDAScanToMapOpt::PrintStates() {
     );
 
     if (surf_hash_map.key_overflow_warning != 0) {
-        printf("surf_hash_map.num_hash             : %d \n", surf_hash_map.num_hash);
-        printf("surf_hash_map.num_keys             : %d \n", surf_hash_map.num_keys);
-        printf("surf_hash_map.key_overflow_warning : %d / %d \n", surf_hash_map.key_overflow_warning, surf_hash_map.max_num_keys_per_hash);
+        printf("surf_hash_map.num_hash             : %d / %d , %.2f \n", surf_hash_map.num_hash            , surf_hash_map.max_num_hash         , float(surf_hash_map.num_hash            ) / surf_hash_map.max_num_hash         );
+        printf("surf_hash_map.num_keys             : %d / %d , %.2f \n", surf_hash_map.num_keys            , surf_hash_map.max_num_keys         , float(surf_hash_map.num_keys            ) / surf_hash_map.max_num_keys         );
+        printf("surf_hash_map.key_overflow_warning : %d / %d , %.2f \n", surf_hash_map.key_overflow_warning, surf_hash_map.max_num_keys_per_hash, float(surf_hash_map.key_overflow_warning) / surf_hash_map.max_num_keys_per_hash);
     } else {
-        printf("surf_hash_map.num_hash : %d \n", surf_hash_map.num_hash);
-        printf("surf_hash_map.num_keys : %d \n", surf_hash_map.num_keys);
+        printf("surf_hash_map.num_hash : %d / %d , %.2f \n", surf_hash_map.num_hash, surf_hash_map.max_num_hash, float(surf_hash_map.num_hash) / surf_hash_map.max_num_hash);
+        printf("surf_hash_map.num_keys : %d / %d , %.2f \n", surf_hash_map.num_keys, surf_hash_map.max_num_keys, float(surf_hash_map.num_keys) / surf_hash_map.max_num_keys);
     }
 
     if (corn_hash_map.key_overflow_warning != 0) {
-        printf("corn_hash_map.num_hash             : %d \n", corn_hash_map.num_hash);
-        printf("corn_hash_map.num_keys             : %d \n", corn_hash_map.num_keys);
-        printf("corn_hash_map.key_overflow_warning : %d / %d \n", corn_hash_map.key_overflow_warning, corn_hash_map.max_num_keys_per_hash);
+        printf("corn_hash_map.num_hash             : %d / %d , %.2f \n", corn_hash_map.num_hash            , corn_hash_map.max_num_hash         , float(corn_hash_map.num_hash            ) / corn_hash_map.max_num_hash         );
+        printf("corn_hash_map.num_keys             : %d / %d , %.2f \n", corn_hash_map.num_keys            , corn_hash_map.max_num_keys         , float(corn_hash_map.num_keys            ) / corn_hash_map.max_num_keys         );
+        printf("corn_hash_map.key_overflow_warning : %d / %d , %.2f \n", corn_hash_map.key_overflow_warning, corn_hash_map.max_num_keys_per_hash, float(corn_hash_map.key_overflow_warning) / corn_hash_map.max_num_keys_per_hash);
     } else {
-        printf("corn_hash_map.num_hash : %d \n", corn_hash_map.num_hash);
-        printf("corn_hash_map.num_keys : %d \n", corn_hash_map.num_keys);
+        printf("corn_hash_map.num_hash : %d / %d , %.2f \n", corn_hash_map.num_hash, corn_hash_map.max_num_hash, float(corn_hash_map.num_hash) / corn_hash_map.max_num_hash);
+        printf("corn_hash_map.num_keys : %d / %d , %.2f \n", corn_hash_map.num_keys, corn_hash_map.max_num_keys, float(corn_hash_map.num_keys) / corn_hash_map.max_num_keys);
     }
 }
 

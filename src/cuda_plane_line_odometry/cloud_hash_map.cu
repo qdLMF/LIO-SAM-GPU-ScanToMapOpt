@@ -173,11 +173,11 @@ CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
 ) : resolution(resolution_), 
     mod(mod_),
     reduction_factor(reduction_factor_),
-    max_num_hashes(mod_), 
-    max_num_keys(mod_ * KEY_BUCKET_SIZE / reduction_factor_), /* max_num_hashes * KEY_BUCKET_SIZE / reduction_factor */
+    max_num_hash(mod_), 
+    max_num_keys(mod_ * KEY_BUCKET_SIZE / reduction_factor_), /* max_num_hash * KEY_BUCKET_SIZE / reduction_factor */
     max_num_keys_per_hash(KEY_BUCKET_SIZE), 
     max_num_points_per_key(POINT_BUCKET_SIZE), 
-    key_bucket_max_size(mod_ * KEY_BUCKET_SIZE), /* max_num_hashes * KEY_BUCKET_SIZE */
+    key_bucket_max_size(mod_ * KEY_BUCKET_SIZE), /* max_num_hash * KEY_BUCKET_SIZE */
     point_bucket_max_size(mod_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE / reduction_factor_), /* max_num_keys * POINT_BUCKET_SIZE */
     max_insertion_size(max_insertion_size_)
 {
@@ -191,7 +191,7 @@ CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
 
     dev_key_bucket_key    .reserve(key_bucket_max_size);
     dev_key_bucket_key_idx.reserve(key_bucket_max_size);
-    dev_key_bucket_key_num.reserve(     max_num_hashes);
+    dev_key_bucket_key_num.reserve(       max_num_hash);
 
     dev_point_bucket_point    .reserve(point_bucket_max_size);
     dev_point_bucket_point_num.reserve(         max_num_keys);
@@ -232,7 +232,7 @@ CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
 
     dev_key_bucket_key    .resize(key_bucket_max_size, GridKey{0, 0, 0, 1});
     dev_key_bucket_key_idx.resize(key_bucket_max_size,                  -1);
-    dev_key_bucket_key_num.resize(     max_num_hashes,                   0);
+    dev_key_bucket_key_num.resize(       max_num_hash,                   0);
 
     dev_point_bucket_point    .resize(point_bucket_max_size, make_float4(0.0, 0.0, 0.0, 0.0));
     dev_point_bucket_point_num.resize(         max_num_keys,                               0);
