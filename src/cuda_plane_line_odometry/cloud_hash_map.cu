@@ -828,10 +828,10 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     }
     __syncthreads();
 
-    GridKey key_in_this_hash[KEY_BUCKET_SIZE];          // content in key bucket
-    int key_idx_in_this_hash[KEY_BUCKET_SIZE];          // content in key bucket
+    GridKey key_in_this_hash[KEY_BUCKET_SIZE];                // content in key bucket
+    int key_idx_in_this_hash[KEY_BUCKET_SIZE];                // content in key bucket
     int key_num_in_this_hash = key_bucket_key_num_[hash_idx]; // content in key bucket
-    for (int i = 0; i < KEY_BUCKET_SIZE; i++) {         // content in key bucket
+    for (int i = 0; i < KEY_BUCKET_SIZE; i++) {               // content in key bucket
         key_in_this_hash    [i] = i < key_num_in_this_hash ? key_bucket_key_    [hash_idx * KEY_BUCKET_SIZE + i] : GridKey{0, 0, 0, 1};
         key_idx_in_this_hash[i] = i < key_num_in_this_hash ? key_bucket_key_idx_[hash_idx * KEY_BUCKET_SIZE + i] :                  -1;
     };
