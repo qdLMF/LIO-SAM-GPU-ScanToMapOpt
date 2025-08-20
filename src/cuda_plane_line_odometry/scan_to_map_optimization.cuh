@@ -35,6 +35,11 @@ public :
     );
 
 public :
+    // available template parameters : 
+    // < 8, 16>
+    // < 8, 32>
+    // <16, 16>
+    // <16, 32>
     CUDACloudHashMap<16, 32> surf_hash_map;
     CUDACloudHashMap< 8, 16> corn_hash_map;
     PointAssociateToMapKernel surf_associate_to_map;
