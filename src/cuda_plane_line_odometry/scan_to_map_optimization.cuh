@@ -35,7 +35,7 @@ public :
     );
 
 public :
-    // template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int KEY_BUCKET_REDUCTION_FACTOR>
+    // template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE, int REDUCTION_FACTOR>
     // available template parameters : 
     // < 8, 16, 4>
     // < 8, 32, 4>
