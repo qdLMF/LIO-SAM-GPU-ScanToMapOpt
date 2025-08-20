@@ -35,8 +35,8 @@ public :
     );
 
 public :
-    CUDACloudHashMap surf_hash_map;
-    CUDACloudHashMap corn_hash_map;
+    CUDACloudHashMap<16, 32> surf_hash_map;
+    CUDACloudHashMap< 8, 16> corn_hash_map;
     PointAssociateToMapKernel surf_associate_to_map;
     PointAssociateToMapKernel corn_associate_to_map;
     CalcSurfCoeffKernel calc_surf_coeff;

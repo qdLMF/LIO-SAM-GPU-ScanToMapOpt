@@ -512,6 +512,24 @@ void CUDAScanToMapOpt::PrintStates() {
         "CUDAScanToMapOpt::trans6 : %f , %f , %f , %f , %f , %f \n", 
         trans6[0], trans6[1], trans6[2], trans6[3], trans6[4], trans6[5]
     );
+
+    if (surf_hash_map.key_overflow_warning != 0) {
+        printf("surf_hash_map.num_hash             : %d \n", surf_hash_map.num_hash);
+        printf("surf_hash_map.num_keys             : %d \n", surf_hash_map.num_keys);
+        printf("surf_hash_map.key_overflow_warning : %d \n", surf_hash_map.key_overflow_warning);
+    } else {
+        printf("surf_hash_map.num_hash : %d \n", surf_hash_map.num_hash);
+        printf("surf_hash_map.num_keys : %d \n", surf_hash_map.num_keys);
+    }
+
+    if (corn_hash_map.key_overflow_warning != 0) {
+        printf("corn_hash_map.num_hash             : %d \n", corn_hash_map.num_hash);
+        printf("corn_hash_map.num_keys             : %d \n", corn_hash_map.num_keys);
+        printf("corn_hash_map.key_overflow_warning : %d \n", corn_hash_map.key_overflow_warning);
+    } else {
+        printf("corn_hash_map.num_hash : %d \n", corn_hash_map.num_hash);
+        printf("corn_hash_map.num_keys : %d \n", corn_hash_map.num_keys);
+    }
 }
 
 

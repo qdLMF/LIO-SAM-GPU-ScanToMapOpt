@@ -71,6 +71,7 @@ __global__ void kernel_compute_key_start_end(
     int2* key_start_end_
 );
 
+template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int num_unique_hash,
     const int* unique_by_hash_hash_,
@@ -81,9 +82,11 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     GridKey* key_bucket_key_,
     int* key_bucket_key_idx_,
     int* key_bucket_key_num_,
-    int* from_hash_to_hash_idx_
+    int* from_hash_to_hash_idx_,
+    int* key_overflow_warning
 );
 
+template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int num_unique_hash,
     int* num_hash_,
@@ -95,9 +98,11 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int* from_hash_to_hash_idx_,
     GridKey* key_bucket_key_,
     int* key_bucket_key_idx_,
-    int* key_bucket_key_num_
+    int* key_bucket_key_num_,
+    int* key_overflow_warning
 );
 
+template<int POINT_BUCKET_SIZE>
 __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty(
     int num_unique_keys,
     const int* unique_by_key_key_idx_,
@@ -107,6 +112,7 @@ __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty(
     int* point_bucket_point_num_
 );
 
+template<int POINT_BUCKET_SIZE>
 __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty(
     int num_unique_keys,
     const int* unique_by_key_key_idx_,
@@ -116,6 +122,7 @@ __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty(
     int* point_bucket_point_num_
 );
 
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
 __global__ void kernel_5nn_search(
     int num_queries,
     float resolution,
@@ -155,17 +162,18 @@ __global__ void kernel_rearrange_unique_by_key(
 
 // ----------
 
-CUDACloudHashMap::CUDACloudHashMap(
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
     float resolution_, 
     unsigned int max_num_hashes_, 
     unsigned int max_insertion_size_
 ) : resolution(resolution_), 
     max_num_hashes(max_num_hashes_), 
     mod(max_num_hashes_),
-    max_num_keys_per_hash(MAX_NUM_KEYS_PER_HASH), 
-    max_num_points_per_key(MAX_NUM_POINTS_PER_KEY), 
-    key_bucket_max_size(max_num_hashes_ * MAX_NUM_KEYS_PER_HASH),
-    point_bucket_max_size(max_num_hashes_ * MAX_NUM_KEYS_PER_HASH * MAX_NUM_POINTS_PER_KEY),
+    max_num_keys_per_hash(KEY_BUCKET_SIZE), 
+    max_num_points_per_key(POINT_BUCKET_SIZE), 
+    key_bucket_max_size(max_num_hashes_ * KEY_BUCKET_SIZE),
+    point_bucket_max_size(max_num_hashes_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE),
     max_insertion_size(max_insertion_size_)
 {
     cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
@@ -207,6 +215,8 @@ CUDACloudHashMap::CUDACloudHashMap(
 
     dev_num_hash.reserve(1);
     dev_num_keys.reserve(1);
+
+    dev_key_overflow_warning.reserve(1);
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -246,37 +256,45 @@ CUDACloudHashMap::CUDACloudHashMap(
 
     dev_num_hash.resize(1, 0);
     dev_num_keys.resize(1, 0);
+
+    dev_key_overflow_warning.resize(1, 0);
     // ----------------------------------------------------------------------------------------------------
 
     Reset();
 }
 
-CUDACloudHashMap::~CUDACloudHashMap() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::~CUDACloudHashMap() {
     cudaStreamSynchronize(stream);
     cudaStreamDestroy(stream);
 }
 
-void CUDACloudHashMap::SyncAfterInsertion() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::SyncAfterInsertion() {
     cudaStreamSynchronize(stream);
 
     num_hash = dev_num_hash[0];
     num_keys = dev_num_keys[0];
+    key_overflow_warning = dev_key_overflow_warning[0];
     percent_used_hash = float(num_hash) / float(mod);
     // ClearTempVectors();
 }
 
-void CUDACloudHashMap::Sync() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Sync() {
     cudaStreamSynchronize(stream);
 }
 
-void CUDACloudHashMap::ClearBuckets() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::ClearBuckets() {
     thrust::fill(dev_from_hash_to_hash_idx .begin(), dev_from_hash_to_hash_idx .end(), -1);
     thrust::fill(dev_key_bucket_key_num    .begin(), dev_key_bucket_key_num    .end(),  0);
     thrust::fill(dev_point_bucket_point_num.begin(), dev_point_bucket_point_num.end(),  0);
 }
 
-// thrust开销大，但没必要，以下所有向量在读取之前都会被写入正确值，所以不需要调用该函数
-void CUDACloudHashMap::ClearTempVectors() {
+// 开销大，但没必要，以下所有向量在读取之前都会被写入正确值，所以不需要调用该函数
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::ClearTempVectors() {
     thrust::fill(dev_key .begin(), dev_key .end(), GridKey{0, 0, 0, 1});
     thrust::fill(dev_hash.begin(), dev_hash.end(),                  -1);
 
@@ -300,11 +318,13 @@ void CUDACloudHashMap::ClearTempVectors() {
     thrust::fill(dev_unique_by_key_key_backup            .begin(), dev_unique_by_key_key_backup            .end(), GridKey{0, 0, 0, 1});
 }
 
-void CUDACloudHashMap::Reset() {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Reset() {
     cudaStreamSynchronize(stream);
 
     dev_num_hash[0] = 0;
     dev_num_keys[0] = 0;
+    dev_key_overflow_warning[0] = 0;
     num_inserted_points = 0;
     num_unique_keys_in_inserted_points = 0;
     num_unique_hash_in_inserted_points = 0;
@@ -315,7 +335,8 @@ void CUDACloudHashMap::Reset() {
     // ClearTempVectors();
 }
 
-void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::InsertV2(const thrust::host_vector<float4> &host_point) {
     if (host_point.empty()) {
         num_inserted_points = 0;
         num_unique_keys_in_inserted_points = 0;
@@ -495,7 +516,7 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
         dim3 num_threads_per_block(NTHREADS_BUILD_MAP);
         dim3 num_blocks_per_grid((num_unique_hash_in_inserted_points + NTHREADS_BUILD_MAP - 1) / NTHREADS_BUILD_MAP);
         if (empty) {
-            kernel_insert_key_to_key_bucket_when_map_is_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
+            kernel_insert_key_to_key_bucket_when_map_is_empty<KEY_BUCKET_SIZE><<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_hash_in_inserted_points,
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_hash[0])),
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_hash_idx[0])),
@@ -505,10 +526,11 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
                 thrust::raw_pointer_cast(&(dev_key_bucket_key[0])),
                 thrust::raw_pointer_cast(&(dev_key_bucket_key_idx[0])),
                 thrust::raw_pointer_cast(&(dev_key_bucket_key_num[0])),
-                thrust::raw_pointer_cast(&(dev_from_hash_to_hash_idx[0]))
+                thrust::raw_pointer_cast(&(dev_from_hash_to_hash_idx[0])),
+                thrust::raw_pointer_cast(&(dev_key_overflow_warning[0]))
             );
         } else {
-            kernel_insert_key_to_key_bucket_when_map_is_not_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
+            kernel_insert_key_to_key_bucket_when_map_is_not_empty<KEY_BUCKET_SIZE><<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_hash_in_inserted_points,
                 thrust::raw_pointer_cast(&(dev_num_hash[0])),
                 thrust::raw_pointer_cast(&(dev_num_keys[0])),
@@ -519,7 +541,8 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
                 thrust::raw_pointer_cast(&(dev_from_hash_to_hash_idx[0])),
                 thrust::raw_pointer_cast(&(dev_key_bucket_key[0])),
                 thrust::raw_pointer_cast(&(dev_key_bucket_key_idx[0])),
-                thrust::raw_pointer_cast(&(dev_key_bucket_key_num[0]))
+                thrust::raw_pointer_cast(&(dev_key_bucket_key_num[0])),
+                thrust::raw_pointer_cast(&(dev_key_overflow_warning[0]))
             );
         }
     }
@@ -532,7 +555,7 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
         dim3 num_threads_per_block(NTHREADS_BUILD_MAP);
         dim3 num_blocks_per_grid((num_unique_keys_in_inserted_points + NTHREADS_BUILD_MAP - 1) / NTHREADS_BUILD_MAP);
         if (empty) {
-            kernel_insert_point_to_point_bucket_when_map_is_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
+            kernel_insert_point_to_point_bucket_when_map_is_empty<POINT_BUCKET_SIZE><<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_keys_in_inserted_points,
                 thrust::raw_pointer_cast(&(dev_unique_by_key_key_idx[0])),
                 thrust::raw_pointer_cast(&(dev_unique_by_key_point_start_end[0])),
@@ -541,7 +564,7 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
                 thrust::raw_pointer_cast(&(dev_point_bucket_point_num[0]))
             );
         } else {
-            kernel_insert_point_to_point_bucket_when_map_is_not_empty<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
+            kernel_insert_point_to_point_bucket_when_map_is_not_empty<POINT_BUCKET_SIZE><<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_keys_in_inserted_points,
                 thrust::raw_pointer_cast(&(dev_unique_by_key_key_idx[0])),
                 thrust::raw_pointer_cast(&(dev_unique_by_key_point_start_end[0])),
@@ -559,7 +582,8 @@ void CUDACloudHashMap::InsertV2(const thrust::host_vector<float4> &host_point) {
     }
 }
 
-void CUDACloudHashMap::Query(
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Query(
     const thrust::device_vector<float4>& cloud_query_3d,
     thrust::device_vector<char>& flag,
     thrust::device_vector<float4>& nbr_0,
@@ -572,7 +596,7 @@ void CUDACloudHashMap::Query(
     {
         dim3 num_threads_per_block(NTHREADS_KNN_SEARCH);
         dim3 num_blocks_per_grid((num_queries + NTHREADS_KNN_SEARCH - 1) / NTHREADS_KNN_SEARCH);
-        kernel_5nn_search<<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
+        kernel_5nn_search<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE><<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
             num_queries,
             resolution,
             mod,
@@ -592,6 +616,10 @@ void CUDACloudHashMap::Query(
         );
     }
 }
+template struct CUDACloudHashMap< 8, 16>;
+template struct CUDACloudHashMap< 8, 32>;
+template struct CUDACloudHashMap<16, 16>;
+template struct CUDACloudHashMap<16, 32>;
 
 // ----------
 
@@ -677,6 +705,7 @@ __global__ void kernel_compute_key_start_end(
     key_start_end_[tid] = {key_start, key_end};
 }
 
+template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int num_unique_hash,
     const int* unique_by_hash_hash_,
@@ -687,7 +716,8 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     GridKey* key_bucket_key_,
     int* key_bucket_key_idx_,
     int* key_bucket_key_num_,
-    int* from_hash_to_hash_idx_
+    int* from_hash_to_hash_idx_,
+    int* key_overflow_warning
 ) {
     unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= num_unique_hash) return;
@@ -697,16 +727,16 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int2 key_start_end = unique_by_hash_key_start_end_[tid];
     int& key_start     = key_start_end.x;
     int& key_end       = key_start_end.y;
-    int  num_keys      = min(key_end - key_start, MAX_NUM_KEYS_PER_HASH);
+    int  num_keys      = min(key_end - key_start, KEY_BUCKET_SIZE);
 
     key_bucket_key_num_[hash_idx] = num_keys;
 
-    for (int i = 0; i < MAX_NUM_KEYS_PER_HASH; i++) {
-        int bucket_idx = hash_idx * MAX_NUM_KEYS_PER_HASH + i;
+    for (int i = 0; i < KEY_BUCKET_SIZE; i++) {
+        int bucket_idx = hash_idx * KEY_BUCKET_SIZE + i;
         key_bucket_key_[bucket_idx] = i < num_keys ? unique_by_key_key_[key_start + i] : GridKey{0, 0, 0, 1};
     }
-    for (int i = 0; i < MAX_NUM_KEYS_PER_HASH / 4; i++) {
-        int bucket_idx = hash_idx * MAX_NUM_KEYS_PER_HASH + i * 4;
+    for (int i = 0; i < KEY_BUCKET_SIZE / 4; i++) {
+        int bucket_idx = hash_idx * KEY_BUCKET_SIZE + i * 4;
         int4 temp = {
             i * 4 + 0 < num_keys ? key_start + i * 4 + 0 : -1, 
             i * 4 + 1 < num_keys ? key_start + i * 4 + 1 : -1, 
@@ -715,11 +745,30 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
         };
         *((int4*)(&(key_bucket_key_idx_[bucket_idx]))) = temp;
     }
-    for (int i = MAX_NUM_KEYS_PER_HASH; i < (key_end - key_start); i++) {
+    for (int i = KEY_BUCKET_SIZE; i < (key_end - key_start); i++) {
         unique_by_key_key_idx_[key_start + i] = -1;
     }
-}
 
+    if (num_keys >= KEY_BUCKET_SIZE * 3 / 4) {
+        atomicMax(key_overflow_warning, num_keys);
+    }
+}
+// template
+// __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty<MAX_NUM_KEYS_PER_HASH>(
+//     int num_unique_hash,
+//     const int* unique_by_hash_hash_,
+//     const int* unique_by_hash_hash_idx_,
+//     const int2* unique_by_hash_key_start_end_,
+//     const GridKey* unique_by_key_key_,
+//     int* unique_by_key_key_idx_,
+//     GridKey* key_bucket_key_,
+//     int* key_bucket_key_idx_,
+//     int* key_bucket_key_num_,
+//     int* from_hash_to_hash_idx_,
+//     int* key_overflow_warning
+// );
+
+template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int num_unique_hash,
     int* num_hash_,
@@ -731,7 +780,8 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int* from_hash_to_hash_idx_,
     GridKey* key_bucket_key_,
     int* key_bucket_key_idx_,
-    int* key_bucket_key_num_
+    int* key_bucket_key_num_,
+    int* key_overflow_warning
 ) {
     unsigned int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= num_unique_hash) {
@@ -770,29 +820,29 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     }
     __syncthreads();
 
-    GridKey key_in_this_hash[MAX_NUM_KEYS_PER_HASH];          // content in key bucket
-    int key_idx_in_this_hash[MAX_NUM_KEYS_PER_HASH];          // content in key bucket
+    GridKey key_in_this_hash[KEY_BUCKET_SIZE];          // content in key bucket
+    int key_idx_in_this_hash[KEY_BUCKET_SIZE];          // content in key bucket
     int key_num_in_this_hash = key_bucket_key_num_[hash_idx]; // content in key bucket
-    for (int i = 0; i < MAX_NUM_KEYS_PER_HASH; i++) {         // content in key bucket
-        key_in_this_hash    [i] = i < key_num_in_this_hash ? key_bucket_key_    [hash_idx * MAX_NUM_KEYS_PER_HASH + i] : GridKey{0, 0, 0, 1};
-        key_idx_in_this_hash[i] = i < key_num_in_this_hash ? key_bucket_key_idx_[hash_idx * MAX_NUM_KEYS_PER_HASH + i] :                  -1;
+    for (int i = 0; i < KEY_BUCKET_SIZE; i++) {         // content in key bucket
+        key_in_this_hash    [i] = i < key_num_in_this_hash ? key_bucket_key_    [hash_idx * KEY_BUCKET_SIZE + i] : GridKey{0, 0, 0, 1};
+        key_idx_in_this_hash[i] = i < key_num_in_this_hash ? key_bucket_key_idx_[hash_idx * KEY_BUCKET_SIZE + i] :                  -1;
     };
 
     int2 key_start_end = unique_by_hash_key_start_end_[tid];
     int& key_start     = key_start_end.x;
     int& key_end       = key_start_end.y;
-    int num_keys       = min(key_end - key_start, MAX_NUM_KEYS_PER_HASH);
-    GridKey key_to_insert[MAX_NUM_KEYS_PER_HASH];     // content in unique_by_key
-    int flag_new_key[MAX_NUM_KEYS_PER_HASH];          // content in unique_by_key
-    int key_idx_local[MAX_NUM_KEYS_PER_HASH];         // content in unique_by_key
-    for (int i = 0; i < MAX_NUM_KEYS_PER_HASH; i++) { // content in unique_by_key
+    int num_keys       = min(key_end - key_start, KEY_BUCKET_SIZE);
+    GridKey key_to_insert[KEY_BUCKET_SIZE];     // content in unique_by_key
+    int flag_new_key[KEY_BUCKET_SIZE];          // content in unique_by_key
+    int key_idx_local[KEY_BUCKET_SIZE];         // content in unique_by_key
+    for (int i = 0; i < KEY_BUCKET_SIZE; i++) { // content in unique_by_key
         key_idx_local[i] = -1;  // new key's local idx
         key_to_insert[i] = i < num_keys ? unique_by_key_key_[key_start + i] : GridKey{0, 0, 0, 0};
         flag_new_key[i]  = i < num_keys ? 0 : -1;
         //  0 means old key
         // -1 means out of boundry
     }
-    for (int i = key_start + MAX_NUM_KEYS_PER_HASH; i < key_end; i++) {
+    for (int i = key_start + KEY_BUCKET_SIZE; i < key_end; i++) {
         unique_by_key_key_idx_[i] = -1;
     }
 
@@ -819,7 +869,7 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     for (int i = 0; i < num_keys; i++) {
         if (flag_new_key[i] == 1) {
             count++;
-            if (count > (MAX_NUM_KEYS_PER_HASH - key_num_in_this_hash)) {
+            if (count > (KEY_BUCKET_SIZE - key_num_in_this_hash)) {
                 flag_new_key[i] == 2; // new key, but there is no room for it in this hash
             }
         }
@@ -858,20 +908,40 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     }
 
     key_bucket_key_num_[hash_idx] = key_num_in_this_hash;
-    for (int i = 0; i < MAX_NUM_KEYS_PER_HASH; i++) {
-        key_bucket_key_[hash_idx * MAX_NUM_KEYS_PER_HASH + i] = key_in_this_hash[i];
+    for (int i = 0; i < KEY_BUCKET_SIZE; i++) {
+        key_bucket_key_[hash_idx * KEY_BUCKET_SIZE + i] = key_in_this_hash[i];
     };
-    for (int i = 0; i < MAX_NUM_KEYS_PER_HASH / 4; i++) {
+    for (int i = 0; i < KEY_BUCKET_SIZE / 4; i++) {
         int4 temp = {
             key_idx_in_this_hash[i * 4 + 0],
             key_idx_in_this_hash[i * 4 + 1],
             key_idx_in_this_hash[i * 4 + 2],
             key_idx_in_this_hash[i * 4 + 3]
         };
-        *((int4*)(&(key_bucket_key_idx_[hash_idx * MAX_NUM_KEYS_PER_HASH + i * 4]))) = temp;
+        *((int4*)(&(key_bucket_key_idx_[hash_idx * KEY_BUCKET_SIZE + i * 4]))) = temp;
     };
-}
 
+    if (key_num_in_this_hash >= KEY_BUCKET_SIZE * 3 / 4) {
+        atomicMax(key_overflow_warning, num_keys);
+    }
+}
+// template
+// __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty<MAX_NUM_KEYS_PER_HASH>(
+//     int num_unique_hash,
+//     int* num_hash_,
+//     int* num_keys_,
+//     const int* unique_by_hash_hash_,
+//     const int2* unique_by_hash_key_start_end_,
+//     const GridKey* unique_by_key_key_,
+//     int* unique_by_key_key_idx_,
+//     int* from_hash_to_hash_idx_,
+//     GridKey* key_bucket_key_,
+//     int* key_bucket_key_idx_,
+//     int* key_bucket_key_num_,
+//     int* key_overflow_warning
+// );
+
+template<int POINT_BUCKET_SIZE>
 __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty(
     int num_unique_keys,
     const int* unique_by_key_key_idx_,
@@ -889,15 +959,25 @@ __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty(
     int2 point_start_end = unique_by_key_point_start_end_[tid];
     int& point_start     = point_start_end.x;
     int& point_end       = point_start_end.y;
-    int  num_points      = min(point_end - point_start, MAX_NUM_POINTS_PER_KEY);
+    int  num_points      = min(point_end - point_start, POINT_BUCKET_SIZE);
 
     point_bucket_point_num_[key_idx] = num_points;
-    for (int i = 0; i < MAX_NUM_POINTS_PER_KEY; i++) {
-        int bucket_idx = key_idx * MAX_NUM_POINTS_PER_KEY + i;
+    for (int i = 0; i < POINT_BUCKET_SIZE; i++) {
+        int bucket_idx = key_idx * POINT_BUCKET_SIZE + i;
         point_bucket_point_[bucket_idx] = i < num_points ? point_[point_start + i] : float4{0, 0, 0, 0};
     }
 }
+// template
+// __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty<MAX_NUM_POINTS_PER_KEY>(
+//     int num_unique_keys,
+//     const int* unique_by_key_key_idx_,
+//     const int2* unique_by_key_point_start_end_,
+//     const float4* point_,
+//     float4* point_bucket_point_,
+//     int* point_bucket_point_num_
+// );
 
+template<int POINT_BUCKET_SIZE>
 __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty(
     int num_unique_keys,
     const int* unique_by_key_key_idx_,
@@ -917,17 +997,27 @@ __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty(
     int2 point_start_end = unique_by_key_point_start_end_[tid];
     int& point_start     = point_start_end.x;
     int& point_end       = point_start_end.y;
-    int  num_points      = min(point_end - point_start, MAX_NUM_POINTS_PER_KEY - num_points_in_bucket_old);
+    int  num_points      = min(point_end - point_start, POINT_BUCKET_SIZE - num_points_in_bucket_old);
 
     int num_points_in_bucket_new = num_points_in_bucket_old + num_points;
 
     point_bucket_point_num_[key_idx] = num_points_in_bucket_new;
-    for (int i = num_points_in_bucket_old; i < MAX_NUM_POINTS_PER_KEY; i++) {
-        point_bucket_point_[key_idx * MAX_NUM_POINTS_PER_KEY + i] = \
+    for (int i = num_points_in_bucket_old; i < POINT_BUCKET_SIZE; i++) {
+        point_bucket_point_[key_idx * POINT_BUCKET_SIZE + i] = \
         i < num_points_in_bucket_new ? point_[point_start + (i - num_points_in_bucket_old)] : float4{0, 0, 0, 0};
     }
 }
+// template
+// __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty<MAX_NUM_POINTS_PER_KEY>(
+//     int num_unique_keys,
+//     const int* unique_by_key_key_idx_,
+//     const int2* unique_by_key_point_start_end_,
+//     const float4* point_,
+//     float4* point_bucket_point_,
+//     int* point_bucket_point_num_
+// );
 
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
 __global__ void kernel_5nn_search(
     int num_queries,
     float resolution,
@@ -993,12 +1083,12 @@ __global__ void kernel_5nn_search(
     for (const auto& grid_key : grid_key_) {
         int hash = hash_func(grid_key, mod);
         int hash_idx = from_hash_to_hash_idx_[hash];
-        int num_keys = min(key_bucket_key_num_[hash_idx], MAX_NUM_KEYS_PER_HASH);
+        int num_keys = min(key_bucket_key_num_[hash_idx], KEY_BUCKET_SIZE);
         int key_idx = -1;
         int k;
         for (k = 0; k < num_keys; k++) {
-            GridKey temp_grid_key = key_bucket_key_[hash_idx * MAX_NUM_KEYS_PER_HASH + k];
-            key_idx = key_bucket_key_idx_[hash_idx * MAX_NUM_KEYS_PER_HASH + k];
+            GridKey temp_grid_key = key_bucket_key_[hash_idx * KEY_BUCKET_SIZE + k];
+            key_idx = key_bucket_key_idx_[hash_idx * KEY_BUCKET_SIZE + k];
             if (temp_grid_key == grid_key) {
                 break;
             }
@@ -1009,7 +1099,7 @@ __global__ void kernel_5nn_search(
 
         int num_points = point_bucket_point_num_[key_idx];
         for (int i = 0; i < num_points; i++) {
-            float4 neighbor = point_bucket_point_[key_idx * MAX_NUM_POINTS_PER_KEY + i];
+            float4 neighbor = point_bucket_point_[key_idx * POINT_BUCKET_SIZE + i];
             float distance = powf((query.x - neighbor.x), 2) + powf((query.y - neighbor.y), 2) + powf((query.z - neighbor.z), 2);
             if (distance < worst_distance) {
                 if (num_neighbors < 5) num_neighbors++;
@@ -1025,7 +1115,7 @@ __global__ void kernel_5nn_search(
                         neighbors[m] = neighbors[m - 1];
                     }
                     distances[j] = distance;
-                    neighbors[j] = key_idx * MAX_NUM_POINTS_PER_KEY + i;
+                    neighbors[j] = key_idx * POINT_BUCKET_SIZE + i;
                 }
             }
             worst_distance = distances[5 - 1];
@@ -1071,4 +1161,22 @@ __global__ void kernel_5nn_search(
 
     flag_[tid] = distances[4] < 1.0 ? char(1) : char(0);
 }
-
+// template
+// __global__ void kernel_5nn_search<MAX_NUM_KEYS_PER_HASH, MAX_NUM_POINTS_PER_KEY>(
+//     int num_queries,
+//     float resolution,
+//     unsigned int mod,
+//     const float4* query_,
+//     const int* from_hash_to_hash_idx_,
+//     const GridKey* key_bucket_key_,
+//     const int* key_bucket_key_idx_,
+//     const int* key_bucket_key_num_,
+//     const float4* point_bucket_point_,
+//     const int* point_bucket_point_num_,
+//     char* flag_,
+//     float4* nbr_0_,
+//     float4* nbr_1_,
+//     float4* nbr_2_,
+//     float4* nbr_3_,
+//     float4* nbr_4_
+// );

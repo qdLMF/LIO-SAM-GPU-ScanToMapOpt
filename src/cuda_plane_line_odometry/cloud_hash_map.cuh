@@ -36,6 +36,7 @@ struct GridKey {
     GridKey& operator=(const GridKey& right) = default;
 };
 
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
 struct CUDACloudHashMap {
 public :
     CUDACloudHashMap() = delete;
@@ -102,6 +103,8 @@ public :
     thrust::device_vector<int> dev_num_hash;
     thrust::device_vector<int> dev_num_keys;
 
+    thrust::device_vector<int> dev_key_overflow_warning;
+
 
 public :
     const float resolution;
@@ -115,6 +118,7 @@ public :
     cudaStream_t stream;
     int num_keys;
     int num_hash;
+    int key_overflow_warning;
     bool empty;
     int num_inserted_points = 0;
     int num_unique_keys_in_inserted_points = 0;
