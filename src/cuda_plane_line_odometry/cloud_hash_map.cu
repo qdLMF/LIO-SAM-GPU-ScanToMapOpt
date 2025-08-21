@@ -13,19 +13,8 @@
 #include "./cloud_hash_map.cuh"
 
 
-// #define RESOLUTION float(0.5)
-// #define MOD 100000
-
-#define MAX_NUM_KEYS_PER_HASH  8
-#define MAX_NUM_POINTS_PER_KEY 32
-
-#define KEY_BUCKET_MAX_SIZE   (MAX_NUM_KEYS_PER_HASH * MOD)
-#define POINT_BUCKET_MAX_SIZE (MAX_NUM_KEYS_PER_HASH * MOD * MAX_NUM_POINTS_PER_KEY)
-
-#define NTHREADS_BUILD_MAP  256 // 256
-#define NTHREADS_KNN_SEARCH 256 // 256
-
-// #define REDUCTION_FACTOR 4
+#define NTHREADS_BUILD_MAP  256
+#define NTHREADS_KNN_SEARCH 256
 
 // ----------
 
@@ -798,20 +787,6 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
         atomicMax(key_overflow_warning, num_keys);
     }
 }
-// template
-// __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty<MAX_NUM_KEYS_PER_HASH>(
-//     int num_unique_hash,
-//     const int* unique_by_hash_hash_,
-//     const int* unique_by_hash_hash_idx_,
-//     const int2* unique_by_hash_key_start_end_,
-//     const GridKey* unique_by_key_key_,
-//     int* unique_by_key_key_idx_,
-//     GridKey* key_bucket_key_,
-//     int* key_bucket_key_idx_,
-//     int* key_bucket_key_num_,
-//     int* from_hash_to_hash_idx_,
-//     int* key_overflow_warning
-// );
 
 template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
@@ -970,21 +945,6 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
         atomicMax(key_overflow_warning, num_keys);
     }
 }
-// template
-// __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty<MAX_NUM_KEYS_PER_HASH>(
-//     int num_unique_hash,
-//     int* num_hash_,
-//     int* num_keys_,
-//     const int* unique_by_hash_hash_,
-//     const int2* unique_by_hash_key_start_end_,
-//     const GridKey* unique_by_key_key_,
-//     int* unique_by_key_key_idx_,
-//     int* from_hash_to_hash_idx_,
-//     GridKey* key_bucket_key_,
-//     int* key_bucket_key_idx_,
-//     int* key_bucket_key_num_,
-//     int* key_overflow_warning
-// );
 
 template<int POINT_BUCKET_SIZE>
 __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty(
@@ -1012,15 +972,6 @@ __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty(
         point_bucket_point_[bucket_idx] = i < num_points ? point_[point_start + i] : float4{0, 0, 0, 0};
     }
 }
-// template
-// __global__ void kernel_insert_point_to_point_bucket_when_map_is_empty<MAX_NUM_POINTS_PER_KEY>(
-//     int num_unique_keys,
-//     const int* unique_by_key_key_idx_,
-//     const int2* unique_by_key_point_start_end_,
-//     const float4* point_,
-//     float4* point_bucket_point_,
-//     int* point_bucket_point_num_
-// );
 
 template<int POINT_BUCKET_SIZE>
 __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty(
@@ -1052,15 +1003,6 @@ __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty(
         i < num_points_in_bucket_new ? point_[point_start + (i - num_points_in_bucket_old)] : float4{0, 0, 0, 0};
     }
 }
-// template
-// __global__ void kernel_insert_point_to_point_bucket_when_map_is_not_empty<MAX_NUM_POINTS_PER_KEY>(
-//     int num_unique_keys,
-//     const int* unique_by_key_key_idx_,
-//     const int2* unique_by_key_point_start_end_,
-//     const float4* point_,
-//     float4* point_bucket_point_,
-//     int* point_bucket_point_num_
-// );
 
 template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
 __global__ void kernel_5nn_search(
@@ -1206,22 +1148,4 @@ __global__ void kernel_5nn_search(
 
     flag_[tid] = distances[4] < 1.0 ? char(1) : char(0);
 }
-// template
-// __global__ void kernel_5nn_search<MAX_NUM_KEYS_PER_HASH, MAX_NUM_POINTS_PER_KEY>(
-//     int num_queries,
-//     float resolution,
-//     unsigned int mod,
-//     const float4* query_,
-//     const int* from_hash_to_hash_idx_,
-//     const GridKey* key_bucket_key_,
-//     const int* key_bucket_key_idx_,
-//     const int* key_bucket_key_num_,
-//     const float4* point_bucket_point_,
-//     const int* point_bucket_point_num_,
-//     char* flag_,
-//     float4* nbr_0_,
-//     float4* nbr_1_,
-//     float4* nbr_2_,
-//     float4* nbr_3_,
-//     float4* nbr_4_
-// );
+
