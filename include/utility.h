@@ -162,6 +162,10 @@ public:
     int   gpuLocalMapMOD;
     int   gpuLocalMapSurfReductionFactor;
     int   gpuLocalMapCornReductionFactor;
+    int   gpuLocalMapSurfKeyBucketSize;
+    int   gpuLocalMapSurfPointBucketSize;
+    int   gpuLocalMapCornKeyBucketSize;
+    int   gpuLocalMapCornPointBucketSize;
 
     ParamServer()
     {
@@ -264,6 +268,10 @@ public:
         nh.param<int  >( "lio_sam/gpuLocalMapMOD"                          , gpuLocalMapMOD                          , 100000 );
         nh.param<int  >( "lio_sam/gpuLocalMapSurfReductionFactor"          , gpuLocalMapSurfReductionFactor          , 4      );
         nh.param<int  >( "lio_sam/gpuLocalMapCornReductionFactor"          , gpuLocalMapCornReductionFactor          , 4      );
+        nh.param<int  >( "lio_sam/gpuLocalMapSurfKeyBucketSize"            , gpuLocalMapSurfKeyBucketSize            , 16     );
+        nh.param<int  >( "lio_sam/gpuLocalMapSurfPointBucketSize"          , gpuLocalMapSurfPointBucketSize          , 32     );
+        nh.param<int  >( "lio_sam/gpuLocalMapCornKeyBucketSize"            , gpuLocalMapCornKeyBucketSize            ,  8     );
+        nh.param<int  >( "lio_sam/gpuLocalMapCornPointBucketSize"          , gpuLocalMapCornPointBucketSize          , 16     );
 
         usleep(100);
     }

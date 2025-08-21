@@ -103,6 +103,10 @@ lio_sam:
   gpuLocalMapMOD: 100000
   gpuLocalMapSurfReductionFactor: 8
   gpuLocalMapCornReductionFactor: 8
+  gpuLocalMapSurfKeyBucketSize: 16
+  gpuLocalMapSurfPointBucketSize: 32
+  gpuLocalMapCornKeyBucketSize: 8
+  gpuLocalMapCornPointBucketSize: 16
 
 
 # Navsat (convert GPS coordinates to Cartesian)

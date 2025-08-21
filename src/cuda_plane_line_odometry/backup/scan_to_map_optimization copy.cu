@@ -13,44 +13,31 @@
 CUDAScanToMapOpt::CUDAScanToMapOpt(
     float resolution_,
     unsigned int mod_, 
-    unsigned int surf_key_bucket_size_,
-    unsigned int surf_point_bucket_size_,
     unsigned int surf_reduction_factor_, 
-    unsigned int corn_key_bucket_size_,
-    unsigned int corn_point_bucket_size_,
     unsigned int corn_reduction_factor_, 
     unsigned int max_size_surf_insertion_,
     unsigned int max_size_corn_insertion_,
     unsigned int max_size_surf_query_,
     unsigned int max_size_corn_query_
-) : jac(max_size_surf_query_ + max_size_corn_query_, 6),
+) : surf_hash_map(
+        resolution_,
+        mod_,
+        surf_reduction_factor_,
+        max_size_surf_insertion_
+    ),
+    corn_hash_map(
+        resolution_,
+        mod_,
+        corn_reduction_factor_,
+        max_size_corn_insertion_
+    ), 
+    jac(max_size_surf_query_ + max_size_corn_query_, 6),
     res(max_size_surf_query_ + max_size_corn_query_, 1),
     max_size_surf_insertion(max_size_surf_insertion_),
     max_size_corn_insertion(max_size_corn_insertion_),
     max_size_surf_query(max_size_surf_query_),
     max_size_corn_query(max_size_corn_query_)
 {
-    // template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-    // available template parameters : 
-    // < 8, 16>
-    // < 8, 32>
-    // <16, 16>
-    // <16, 32>
-    surf_hash_map = GetCUDACloudHashMapInstance(surf_key_bucket_size_, surf_point_bucket_size_);
-    corn_hash_map = GetCUDACloudHashMapInstance(corn_key_bucket_size_, corn_point_bucket_size_);
-    surf_hash_map->Allocate(
-        resolution_,
-        mod_,
-        surf_reduction_factor_,
-        max_size_surf_insertion_
-    );
-    corn_hash_map->Allocate(
-        resolution_,
-        mod_,
-        corn_reduction_factor_,
-        max_size_corn_insertion_
-    );
-
     surf_flag .reserve(max_size_surf_query);
     surf_sel  .reserve(max_size_surf_query);
     surf_nbr_0.reserve(max_size_surf_query);
@@ -158,21 +145,21 @@ inline float rad2deg(float alpha) {
 }
 
 void CUDAScanToMapOpt::ResetSurfMap () {
-    surf_hash_map->Reset();
+    surf_hash_map.Reset();
 }
 
 void CUDAScanToMapOpt::ResetCornMap () {
-    corn_hash_map->Reset();
+    corn_hash_map.Reset();
 }
 
 void CUDAScanToMapOpt::ResetSurfAndCornMap () {
     cudaStreamSynchronize(0);
 
-    surf_hash_map->Reset();
-    corn_hash_map->Reset();
+    surf_hash_map.Reset();
+    corn_hash_map.Reset();
 
-    surf_hash_map->Sync();
-    corn_hash_map->Sync();
+    surf_hash_map.Sync();
+    corn_hash_map.Sync();
 
     opt_count = 0;
 }
@@ -184,17 +171,17 @@ void CUDAScanToMapOpt::InsertSurfAndCornToHashMap(
     cudaStreamSynchronize(0);
 
     if (!host_surf_map_3d.empty()) {
-        surf_hash_map->InsertV2(host_surf_map_3d);
+        surf_hash_map.InsertV2(host_surf_map_3d);
     }
     if (!host_corn_map_3d.empty()) {
-        corn_hash_map->InsertV2(host_corn_map_3d);
+        corn_hash_map.InsertV2(host_corn_map_3d);
     }
 
     if (!host_surf_map_3d.empty()) {
-        surf_hash_map->SyncAfterInsertion();
+        surf_hash_map.SyncAfterInsertion();
     }
     if (!host_corn_map_3d.empty()) {
-        corn_hash_map->SyncAfterInsertion();
+        corn_hash_map.SyncAfterInsertion();
     }
 }
 
@@ -204,11 +191,11 @@ void CUDAScanToMapOpt::InsertSurfToHashMap(
     cudaStreamSynchronize(0);
 
     if (!host_surf_map_3d.empty()) {
-        surf_hash_map->InsertV2(host_surf_map_3d);
+        surf_hash_map.InsertV2(host_surf_map_3d);
     }
 
     if (!host_surf_map_3d.empty()) {
-        surf_hash_map->SyncAfterInsertion();
+        surf_hash_map.SyncAfterInsertion();
     }
 }
 
@@ -216,11 +203,11 @@ void CUDAScanToMapOpt::InsertCornToHashMap(const thrust::host_vector<float4>& ho
     cudaStreamSynchronize(0);
 
     if (!host_corn_map_3d.empty()) {
-        corn_hash_map->InsertV2(host_corn_map_3d);
+        corn_hash_map.InsertV2(host_corn_map_3d);
     }
 
     if (!host_corn_map_3d.empty()) {
-        corn_hash_map->SyncAfterInsertion();
+        corn_hash_map.SyncAfterInsertion();
     }
 }
 
@@ -352,25 +339,25 @@ void CUDAScanToMapOpt::TransformSurfAndCornPoints() {
 void CUDAScanToMapOpt::SearchSurfPointsWithHashMap() {
     cudaStreamSynchronize(0);
 
-    surf_hash_map->Query(surf_sel, surf_flag, surf_nbr_0, surf_nbr_1, surf_nbr_2, surf_nbr_3, surf_nbr_4);
-    surf_hash_map->Sync();
+    surf_hash_map.Query(surf_sel, surf_flag, surf_nbr_0, surf_nbr_1, surf_nbr_2, surf_nbr_3, surf_nbr_4);
+    surf_hash_map.Sync();
 }
 
 void CUDAScanToMapOpt::SearchCornPointsWithHashMap() {
     cudaStreamSynchronize(0);
 
-    corn_hash_map->Query(corn_sel, corn_flag, corn_nbr_0, corn_nbr_1, corn_nbr_2, corn_nbr_3, corn_nbr_4);
-    corn_hash_map->Sync();
+    corn_hash_map.Query(corn_sel, corn_flag, corn_nbr_0, corn_nbr_1, corn_nbr_2, corn_nbr_3, corn_nbr_4);
+    corn_hash_map.Sync();
 }
 
 void CUDAScanToMapOpt::SearchSurfAndCornPointsWithHashMap() {
     cudaStreamSynchronize(0);
 
-    surf_hash_map->Query(surf_sel, surf_flag, surf_nbr_0, surf_nbr_1, surf_nbr_2, surf_nbr_3, surf_nbr_4);
-    corn_hash_map->Query(corn_sel, corn_flag, corn_nbr_0, corn_nbr_1, corn_nbr_2, corn_nbr_3, corn_nbr_4);
+    surf_hash_map.Query(surf_sel, surf_flag, surf_nbr_0, surf_nbr_1, surf_nbr_2, surf_nbr_3, surf_nbr_4);
+    corn_hash_map.Query(corn_sel, corn_flag, corn_nbr_0, corn_nbr_1, corn_nbr_2, corn_nbr_3, corn_nbr_4);
 
-    surf_hash_map->Sync();
-    corn_hash_map->Sync();
+    surf_hash_map.Sync();
+    corn_hash_map.Sync();
 }
 
 void CUDAScanToMapOpt::CalcSurfCoeff() {
@@ -530,22 +517,22 @@ void CUDAScanToMapOpt::PrintStates() {
         trans6[0], trans6[1], trans6[2], trans6[3], trans6[4], trans6[5]
     );
 
-    if (surf_hash_map->get_key_overflow_warning() != 0) {
-        printf("surf_hash_map->num_hash             : %d / %d , %.2f \n", surf_hash_map->get_num_hash            (), surf_hash_map->get_max_num_hash         (), float(surf_hash_map->get_num_hash            ()) / surf_hash_map->get_max_num_hash         ());
-        printf("surf_hash_map->num_keys             : %d / %d , %.2f \n", surf_hash_map->get_num_keys            (), surf_hash_map->get_max_num_keys         (), float(surf_hash_map->get_num_keys            ()) / surf_hash_map->get_max_num_keys         ());
-        printf("surf_hash_map->key_overflow_warning : %d / %d , %.2f \n", surf_hash_map->get_key_overflow_warning(), surf_hash_map->get_max_num_keys_per_hash(), float(surf_hash_map->get_key_overflow_warning()) / surf_hash_map->get_max_num_keys_per_hash());
+    if (surf_hash_map.key_overflow_warning != 0) {
+        printf("surf_hash_map.num_hash             : %d / %d , %.2f \n", surf_hash_map.num_hash            , surf_hash_map.max_num_hash         , float(surf_hash_map.num_hash            ) / surf_hash_map.max_num_hash         );
+        printf("surf_hash_map.num_keys             : %d / %d , %.2f \n", surf_hash_map.num_keys            , surf_hash_map.max_num_keys         , float(surf_hash_map.num_keys            ) / surf_hash_map.max_num_keys         );
+        printf("surf_hash_map.key_overflow_warning : %d / %d , %.2f \n", surf_hash_map.key_overflow_warning, surf_hash_map.max_num_keys_per_hash, float(surf_hash_map.key_overflow_warning) / surf_hash_map.max_num_keys_per_hash);
     } else {
-        printf("surf_hash_map->num_hash : %d / %d , %.2f \n", surf_hash_map->get_num_hash(), surf_hash_map->get_max_num_hash(), float(surf_hash_map->get_num_hash()) / surf_hash_map->get_max_num_hash());
-        printf("surf_hash_map->num_keys : %d / %d , %.2f \n", surf_hash_map->get_num_keys(), surf_hash_map->get_max_num_keys(), float(surf_hash_map->get_num_keys()) / surf_hash_map->get_max_num_keys());
+        printf("surf_hash_map.num_hash : %d / %d , %.2f \n", surf_hash_map.num_hash, surf_hash_map.max_num_hash, float(surf_hash_map.num_hash) / surf_hash_map.max_num_hash);
+        printf("surf_hash_map.num_keys : %d / %d , %.2f \n", surf_hash_map.num_keys, surf_hash_map.max_num_keys, float(surf_hash_map.num_keys) / surf_hash_map.max_num_keys);
     }
 
-    if (corn_hash_map->get_key_overflow_warning() != 0) {
-        printf("corn_hash_map->num_hash             : %d / %d , %.2f \n", corn_hash_map->get_num_hash            (), corn_hash_map->get_max_num_hash         (), float(corn_hash_map->get_num_hash            ()) / corn_hash_map->get_max_num_hash         ());
-        printf("corn_hash_map->num_keys             : %d / %d , %.2f \n", corn_hash_map->get_num_keys            (), corn_hash_map->get_max_num_keys         (), float(corn_hash_map->get_num_keys            ()) / corn_hash_map->get_max_num_keys         ());
-        printf("corn_hash_map->key_overflow_warning : %d / %d , %.2f \n", corn_hash_map->get_key_overflow_warning(), corn_hash_map->get_max_num_keys_per_hash(), float(corn_hash_map->get_key_overflow_warning()) / corn_hash_map->get_max_num_keys_per_hash());
+    if (corn_hash_map.key_overflow_warning != 0) {
+        printf("corn_hash_map.num_hash             : %d / %d , %.2f \n", corn_hash_map.num_hash            , corn_hash_map.max_num_hash         , float(corn_hash_map.num_hash            ) / corn_hash_map.max_num_hash         );
+        printf("corn_hash_map.num_keys             : %d / %d , %.2f \n", corn_hash_map.num_keys            , corn_hash_map.max_num_keys         , float(corn_hash_map.num_keys            ) / corn_hash_map.max_num_keys         );
+        printf("corn_hash_map.key_overflow_warning : %d / %d , %.2f \n", corn_hash_map.key_overflow_warning, corn_hash_map.max_num_keys_per_hash, float(corn_hash_map.key_overflow_warning) / corn_hash_map.max_num_keys_per_hash);
     } else {
-        printf("corn_hash_map->num_hash : %d / %d , %.2f \n", corn_hash_map->get_num_hash(), corn_hash_map->get_max_num_hash(), float(corn_hash_map->get_num_hash()) / corn_hash_map->get_max_num_hash());
-        printf("corn_hash_map->num_keys : %d / %d , %.2f \n", corn_hash_map->get_num_keys(), corn_hash_map->get_max_num_keys(), float(corn_hash_map->get_num_keys()) / corn_hash_map->get_max_num_keys());
+        printf("corn_hash_map.num_hash : %d / %d , %.2f \n", corn_hash_map.num_hash, corn_hash_map.max_num_hash, float(corn_hash_map.num_hash) / corn_hash_map.max_num_hash);
+        printf("corn_hash_map.num_keys : %d / %d , %.2f \n", corn_hash_map.num_keys, corn_hash_map.max_num_keys, float(corn_hash_map.num_keys) / corn_hash_map.max_num_keys);
     }
 }
 

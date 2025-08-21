@@ -26,13 +26,9 @@ struct CUDAScanToMapOpt {
 public :
     CUDAScanToMapOpt() = delete;
     explicit CUDAScanToMapOpt(
-        float resolution_,
+        float resolution,
         unsigned int mod_, 
-        unsigned int surf_key_bucket_size_,
-        unsigned int surf_point_bucket_size_,
         unsigned int surf_reduction_factor_, 
-        unsigned int corn_key_bucket_size_,
-        unsigned int corn_point_bucket_size_,
         unsigned int corn_reduction_factor_, 
         unsigned int max_size_surf_insertion_,
         unsigned int max_size_corn_insertion_,
@@ -47,10 +43,8 @@ public :
     // < 8, 32>
     // <16, 16>
     // <16, 32>
-    // CUDACloudHashMap<16, 32> surf_hash_map;
-    // CUDACloudHashMap< 8, 16> corn_hash_map;
-    std::unique_ptr<CUDACloudHashMapBase> surf_hash_map;
-    std::unique_ptr<CUDACloudHashMapBase> corn_hash_map;
+    CUDACloudHashMap<16, 32> surf_hash_map;
+    CUDACloudHashMap< 8, 16> corn_hash_map;
     PointAssociateToMapKernel surf_associate_to_map;
     PointAssociateToMapKernel corn_associate_to_map;
     CalcSurfCoeffKernel calc_surf_coeff;

@@ -267,7 +267,11 @@ public:
             cuda_scan_to_map_opt = std::make_unique<CUDAScanToMapOpt>(
                 gpuLocalMapVoxelSize, 
                 gpuLocalMapMOD, 
+                gpuLocalMapSurfKeyBucketSize, 
+                gpuLocalMapSurfPointBucketSize, 
                 gpuLocalMapSurfReductionFactor, 
+                gpuLocalMapCornKeyBucketSize, 
+                gpuLocalMapCornPointBucketSize, 
                 gpuLocalMapCornReductionFactor, 
                 gpuLocalMapMaxNumSurfPointsPerInsertion, 
                 gpuLocalMapMaxNumCornPointsPerInsertion, 
@@ -960,12 +964,12 @@ public:
     {
         if (useGPULocalMap) {
             reset_gpu_local_map = \
-               (float(cuda_scan_to_map_opt->surf_hash_map.num_hash            ) / cuda_scan_to_map_opt->surf_hash_map.max_num_hash         ) >= 0.75
-            || (float(cuda_scan_to_map_opt->surf_hash_map.num_keys            ) / cuda_scan_to_map_opt->surf_hash_map.max_num_keys         ) >= 0.75
-            || (float(cuda_scan_to_map_opt->surf_hash_map.key_overflow_warning) / cuda_scan_to_map_opt->surf_hash_map.max_num_keys_per_hash) >= 0.75
-            || (float(cuda_scan_to_map_opt->corn_hash_map.num_hash            ) / cuda_scan_to_map_opt->corn_hash_map.max_num_hash         ) >= 0.75
-            || (float(cuda_scan_to_map_opt->corn_hash_map.num_keys            ) / cuda_scan_to_map_opt->corn_hash_map.max_num_keys         ) >= 0.75
-            || (float(cuda_scan_to_map_opt->corn_hash_map.key_overflow_warning) / cuda_scan_to_map_opt->corn_hash_map.max_num_keys_per_hash) >= 0.75
+               (float(cuda_scan_to_map_opt->surf_hash_map->get_num_hash            ()) / cuda_scan_to_map_opt->surf_hash_map->get_max_num_hash         ()) >= 0.75
+            || (float(cuda_scan_to_map_opt->surf_hash_map->get_num_keys            ()) / cuda_scan_to_map_opt->surf_hash_map->get_max_num_keys         ()) >= 0.75
+            || (float(cuda_scan_to_map_opt->surf_hash_map->get_key_overflow_warning()) / cuda_scan_to_map_opt->surf_hash_map->get_max_num_keys_per_hash()) >= 0.75
+            || (float(cuda_scan_to_map_opt->corn_hash_map->get_num_hash            ()) / cuda_scan_to_map_opt->corn_hash_map->get_max_num_hash         ()) >= 0.75
+            || (float(cuda_scan_to_map_opt->corn_hash_map->get_num_keys            ()) / cuda_scan_to_map_opt->corn_hash_map->get_max_num_keys         ()) >= 0.75
+            || (float(cuda_scan_to_map_opt->corn_hash_map->get_key_overflow_warning()) / cuda_scan_to_map_opt->corn_hash_map->get_max_num_keys_per_hash()) >= 0.75
             || cuda_scan_to_map_opt->opt_count >= gpuLocalMapResetFreq 
             || laserCloudMapContainer.empty();
         } else {

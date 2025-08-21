@@ -3,8 +3,8 @@
 //
 
 #include <chrono>
+#include <unordered_map>
 #include <map>
-#include <functional>
 
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
@@ -165,25 +165,22 @@ __global__ void kernel_rearrange_unique_by_key(
 // ----------
 
 template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Allocate(
+CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::CUDACloudHashMap(
     float resolution_, 
     unsigned int mod_, 
     unsigned int reduction_factor_, 
     unsigned int max_insertion_size_
-) {
-    resolution = resolution_;
-    mod = mod_;
-    reduction_factor = reduction_factor_;
-    max_num_hash = mod_;
-    max_num_keys = mod_ * KEY_BUCKET_SIZE / reduction_factor_; /* max_num_hash * KEY_BUCKET_SIZE / reduction_factor */
-    max_num_keys_per_hash = KEY_BUCKET_SIZE;
-    max_num_points_per_key = POINT_BUCKET_SIZE;
-    key_bucket_max_size = mod_ * KEY_BUCKET_SIZE; /* max_num_hash * KEY_BUCKET_SIZE */
-    point_bucket_max_size = mod_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE / reduction_factor_; /* max_num_keys * POINT_BUCKET_SIZE */
-    max_insertion_size = max_insertion_size_;
-
-    // ----------------------------------------------------------------------------------------------------
-
+) : resolution(resolution_), 
+    mod(mod_),
+    reduction_factor(reduction_factor_),
+    max_num_hash(mod_), 
+    max_num_keys(mod_ * KEY_BUCKET_SIZE / reduction_factor_), /* max_num_hash * KEY_BUCKET_SIZE / reduction_factor */
+    max_num_keys_per_hash(KEY_BUCKET_SIZE), 
+    max_num_points_per_key(POINT_BUCKET_SIZE), 
+    key_bucket_max_size(mod_ * KEY_BUCKET_SIZE), /* max_num_hash * KEY_BUCKET_SIZE */
+    point_bucket_max_size(mod_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE / reduction_factor_), /* max_num_keys * POINT_BUCKET_SIZE */
+    max_insertion_size(max_insertion_size_)
+{
     cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
 
     // ----------------------------------------------------------------------------------------------------
@@ -628,43 +625,6 @@ template struct CUDACloudHashMap< 8, 16>;
 template struct CUDACloudHashMap< 8, 32>;
 template struct CUDACloudHashMap<16, 16>;
 template struct CUDACloudHashMap<16, 32>;
-
-// ----------
-
-const std::map<
-    std::pair<int, int>, 
-    std::function<std::unique_ptr<CUDACloudHashMapBase>()>
-> CUDACloudHashMapFactory = {
-    { { 8, 16}, []() -> std::unique_ptr<CUDACloudHashMapBase> { return std::make_unique<CUDACloudHashMap< 8, 16>>(); } }, 
-    { { 8, 32}, []() -> std::unique_ptr<CUDACloudHashMapBase> { return std::make_unique<CUDACloudHashMap< 8, 32>>(); } }, 
-    { {16, 16}, []() -> std::unique_ptr<CUDACloudHashMapBase> { return std::make_unique<CUDACloudHashMap<16, 16>>(); } }, 
-    { {16, 32}, []() -> std::unique_ptr<CUDACloudHashMapBase> { return std::make_unique<CUDACloudHashMap<16, 32>>(); } },
-};
-
-std::unique_ptr<CUDACloudHashMapBase> GetCUDACloudHashMapInstance(
-    int key_bucket_size,
-    int point_bucket_size
-) {
-    auto it = CUDACloudHashMapFactory.find({key_bucket_size, point_bucket_size});
-    try {
-        if (it != CUDACloudHashMapFactory.end()) {
-            return it->second();
-        } else {
-            std::string error_str = \
-            "Invalid template params! Only the following template params are available : \n"
-            "\t< 8, 16>"
-            "\t< 8, 32>"
-            "\t<16, 16>"
-            "\t<16, 32>"
-            "\n"
-            "Using the max capacity <16, 32> instead. \n";
-            throw std::invalid_argument(error_str);
-            return CUDACloudHashMapFactory.find({16, 32})->second();
-        }
-    } catch (const std::invalid_argument& e) {
-        std::cerr << e.what() << std::endl;
-    }
-}
 
 // ----------
 
