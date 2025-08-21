@@ -97,8 +97,8 @@ lio_sam:
   gpuLocalMapMaxNumCornPointsPerQuery: 10240
   gpuLocalMapVoxelSize: 0.5
   gpuLocalMapMOD: 100000
-  gpuLocalMapSurfReductionFactor: 8
-  gpuLocalMapCornReductionFactor: 8
+  gpuLocalMapSurfReductionFactor: 8  # 4 , 8 , 16
+  gpuLocalMapCornReductionFactor: 8  # 4 , 8 , 16
   gpuLocalMapSurfKeyBucketSize:   16 # available values :  8 , 16
   gpuLocalMapSurfPointBucketSize: 32 # available values : 16 , 32
   gpuLocalMapCornKeyBucketSize:    8 # available values :  8 , 16
