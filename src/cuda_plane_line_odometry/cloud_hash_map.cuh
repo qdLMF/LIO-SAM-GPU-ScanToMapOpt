@@ -80,7 +80,7 @@ protected :
     unsigned int max_insertion_size;
     int          num_keys;
     int          num_hash;
-    int          key_overflow_warning;
+    int          key_overflow_warning; // this is for overflow risk in any key bucket, key idx overflow risk is indicated by num_keys, if num_keys is >= max_num_keys, it means key indices are ran out, and we should expand capacity or reset local map.
     bool         empty;
     int          num_inserted_points = 0;
     int          num_unique_keys_in_inserted_points = 0;
@@ -185,34 +185,5 @@ std::unique_ptr<CUDACloudHashMapBase> GetCUDACloudHashMapInstance(
     int point_bucket_size
 );
 
-
-// class CUDACloudHashMapFactory {
-// public:
-//     // 删除拷贝构造函数和赋值运算符
-//     CUDACloudHashMapFactory(const CUDACloudHashMapFactory&) = delete;
-//     CUDACloudHashMapFactory& operator=(const CUDACloudHashMapFactory&) = delete;
-    
-//     // 获取单例实例
-//     static CUDACloudHashMapFactory& getInstance();
-    
-//     // 创建特定大小的数组
-//     std::unique_ptr<CUDACloudHashMapBase> createCUDACloudHashMap(int key_bucket_size, int point_bucket_size);
-    
-//     // 获取支持的大小列表
-//     std::vector<std::pair<int, int>> getSupportedSizes() const;
-    
-//     // 检查是否支持特定大小
-//     bool isSizeSupported(int key_bucket_size, int point_bucket_size) const;
-    
-//     // 注册自定义大小（必须在编译时已知）
-//     template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
-//     void registerSize();
-    
-// private:
-//     CUDACloudHashMapFactory();
-//     ~CUDACloudHashMapFactory() = default;
-    
-//     std::unordered_map<std::pair<int, int>, std::function<std::unique_ptr<CUDACloudHashMapBase>()>> creators;
-// };
 
 #endif //LIO_SAM_CUDA_CLOUD_HASH_MAP_CUH

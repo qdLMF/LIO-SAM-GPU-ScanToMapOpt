@@ -144,7 +144,16 @@ public :
     float trans3x4[3][4];
     float trans6[6]; // roll, pitch, yaw, x, y, z
 
+public : 
     int opt_count = 0;
+
+public : 
+    float GetSurfKeyUsage0();
+    float GetSurfKeyUsage1();
+    float GetSurfHashUsage();
+    float GetCornKeyUsage0();
+    float GetCornKeyUsage1();
+    float GetCornHashUsage();
 };
 
 #endif //LIO_SAM_CUDA_SCAN_TO_MAP_OPTIMIZATION_CUH

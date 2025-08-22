@@ -549,7 +549,28 @@ void CUDAScanToMapOpt::PrintStates() {
     }
 }
 
+float CUDAScanToMapOpt::GetSurfKeyUsage0() {
+    return float(surf_hash_map->get_num_keys()) / surf_hash_map->get_max_num_keys();
+}
 
+float CUDAScanToMapOpt::GetSurfKeyUsage1() {
+    return float(surf_hash_map->get_key_overflow_warning()) / surf_hash_map->get_max_num_keys_per_hash();
+}
 
+float CUDAScanToMapOpt::GetSurfHashUsage() {
+    return float(surf_hash_map->get_num_hash()) / surf_hash_map->get_max_num_hash();
+}
+
+float CUDAScanToMapOpt::GetCornKeyUsage0() {
+    return float(corn_hash_map->get_num_keys()) / corn_hash_map->get_max_num_keys();
+}
+
+float CUDAScanToMapOpt::GetCornKeyUsage1() {
+    return float(corn_hash_map->get_key_overflow_warning()) / corn_hash_map->get_max_num_keys_per_hash();
+}
+
+float CUDAScanToMapOpt::GetCornHashUsage() {
+    return float(corn_hash_map->get_num_hash()) / corn_hash_map->get_max_num_hash();
+}
 
 

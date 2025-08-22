@@ -65,6 +65,7 @@ __global__ void kernel_compute_key_start_end(
 template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int num_unique_hash,
+    int max_num_keys,
     const int* unique_by_hash_hash_,
     const int* unique_by_hash_hash_idx_,
     const int2* unique_by_hash_key_start_end_,
@@ -80,6 +81,7 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
 template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int num_unique_hash,
+    int max_num_keys,
     int* num_hash_,
     int* num_keys_,
     const int* unique_by_hash_hash_,
@@ -515,6 +517,7 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::InsertV2(const thrust
         if (empty) {
             kernel_insert_key_to_key_bucket_when_map_is_empty<KEY_BUCKET_SIZE><<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_hash_in_inserted_points,
+                max_num_keys,
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_hash[0])),
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_hash_idx[0])),
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_key_start_end[0])),
@@ -529,6 +532,7 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::InsertV2(const thrust
         } else {
             kernel_insert_key_to_key_bucket_when_map_is_not_empty<KEY_BUCKET_SIZE><<<num_blocks_per_grid, num_threads_per_block, 0, stream>>>(
                 num_unique_hash_in_inserted_points,
+                max_num_keys,
                 thrust::raw_pointer_cast(&(dev_num_hash[0])),
                 thrust::raw_pointer_cast(&(dev_num_keys[0])),
                 thrust::raw_pointer_cast(&(dev_unique_by_hash_hash[0])),
@@ -573,6 +577,20 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::InsertV2(const thrust
     }
     // ------------------------------------------------------------------------------------------------------------------------
 
+    // if max_num_hash == mod : 
+    //     when empty, after above operations, num_hash == max_num_hash is possible, num_hash > max_num_hash is impossible
+    //     when empty, after above operations, num_keys == max_num_keys is possible, num_keys > max_num_keys is also possible, out-of-boundry part is discarded
+    //     when not empty, after above operations, num_hash == max_num_hash is possible, num_hash > max_num_hash is impossible
+    //     when not empty, after above operations, num_keys == max_num_keys is possible, num_keys > max_num_keys is also possible, out-of-boundry part is discarded
+
+    // when empty, in kernel_insert_key_to_key_bucket_when_map_is_empty : 
+    //     any hash_idx is impossible to be >= max_num_hash
+    //     if a key has a key_idx >= max_num_keys, then its unique_by_key_key_idx will be set to -1, so the key will be ignored by the following kernel
+    // when not empty, in kernel_insert_key_to_key_bucket_when_map_is_not_empty : 
+    //     any hash_idx is impossible to be >= max_num_hash
+    //     if a key has a key_idx >= max_num_keys, then its unique_by_key_key_idx will be set to -1, so the key will be ignored by the following kernel
+
+    // check 
 
     if (empty) {
         empty = false;
@@ -648,10 +666,10 @@ std::unique_ptr<CUDACloudHashMapBase> GetCUDACloudHashMapInstance(
             "\n"
             "Using the max capacity <16, 32> instead. \n";
             throw std::invalid_argument(error_str);
-            return CUDACloudHashMapFactory.find({16, 32})->second();
         }
     } catch (const std::invalid_argument& e) {
         std::cerr << e.what() << std::endl;
+        return CUDACloudHashMapFactory.find({16, 32})->second();
     }
 }
 
@@ -742,6 +760,7 @@ __global__ void kernel_compute_key_start_end(
 template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     int num_unique_hash,
+    int max_num_keys,
     const int* unique_by_hash_hash_,
     const int* unique_by_hash_hash_idx_,
     const int2* unique_by_hash_key_start_end_,
@@ -757,40 +776,64 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_empty(
     if (tid >= num_unique_hash) return;
 
     int hash_idx = unique_by_hash_hash_idx_[tid];
+    // if max_num_hash == mod, then hash idx is impossible to be >= max_num_hash.
+    // if max_num_hash <  mod, then hash idx is   possible to be >= max_num_hash, then we need to add some protection codes here.
 
     int2 key_start_end = unique_by_hash_key_start_end_[tid];
     int& key_start     = key_start_end.x;
     int& key_end       = key_start_end.y;
     int  num_keys      = min(key_end - key_start, KEY_BUCKET_SIZE);
 
-    key_bucket_key_num_[hash_idx] = num_keys;
+    GridKey key_in_this_hash[KEY_BUCKET_SIZE]; // content in key bucket
+    int key_idx_in_this_hash[KEY_BUCKET_SIZE]; // content in key bucket
+    int key_num_in_this_hash = 0;              // content in key bucket
+    for (int i = 0; i < num_keys; i++) {
+        if (unique_by_key_key_idx_[key_start + i] < max_num_keys) {
+            key_in_this_hash    [key_num_in_this_hash] = unique_by_key_key_    [key_start + i];
+            key_idx_in_this_hash[key_num_in_this_hash] = unique_by_key_key_idx_[key_start + i];
+            key_num_in_this_hash++;
+        } else {
+            // it means key indices are ran out, so we don't put this key into key bucket.
+            // and we set this key's unique_by_key_key_idx_ to -1, so the following kernel will ignore this key.
+            unique_by_key_key_idx_[key_start + i] = -1;
+        }
+    }
+    for (int i = key_num_in_this_hash; i < KEY_BUCKET_SIZE; i++) {
+        key_in_this_hash    [i] = GridKey{0, 0, 0, 1};
+        key_idx_in_this_hash[i] = -1;
+    }
 
+    // write to global mem
+    key_bucket_key_num_[hash_idx] = key_num_in_this_hash;
     for (int i = 0; i < KEY_BUCKET_SIZE; i++) {
-        int bucket_idx = hash_idx * KEY_BUCKET_SIZE + i;
-        key_bucket_key_[bucket_idx] = i < num_keys ? unique_by_key_key_[key_start + i] : GridKey{0, 0, 0, 1};
+        key_bucket_key_    [hash_idx * KEY_BUCKET_SIZE + i] = key_in_this_hash    [i];
+        key_bucket_key_idx_[hash_idx * KEY_BUCKET_SIZE + i] = key_idx_in_this_hash[i];
     }
     for (int i = 0; i < KEY_BUCKET_SIZE / 4; i++) {
         int bucket_idx = hash_idx * KEY_BUCKET_SIZE + i * 4;
         int4 temp = {
-            i * 4 + 0 < num_keys ? key_start + i * 4 + 0 : -1, 
-            i * 4 + 1 < num_keys ? key_start + i * 4 + 1 : -1, 
-            i * 4 + 2 < num_keys ? key_start + i * 4 + 2 : -1, 
-            i * 4 + 3 < num_keys ? key_start + i * 4 + 3 : -1
+            key_idx_in_this_hash[i * 4 + 0], 
+            key_idx_in_this_hash[i * 4 + 1], 
+            key_idx_in_this_hash[i * 4 + 2], 
+            key_idx_in_this_hash[i * 4 + 3]
         };
         *((int4*)(&(key_bucket_key_idx_[bucket_idx]))) = temp;
     }
     for (int i = KEY_BUCKET_SIZE; i < (key_end - key_start); i++) {
+        // key bucket hash no room for this key, so unique_by_key_key_idx_ set to -1, 
+        // so the following kernel will ignore this key.
         unique_by_key_key_idx_[key_start + i] = -1;
     }
 
-    if (num_keys >= KEY_BUCKET_SIZE * 3 / 4) {
-        atomicMax(key_overflow_warning, num_keys);
+    if (key_num_in_this_hash >= KEY_BUCKET_SIZE * 3 / 4) {
+        atomicMax(key_overflow_warning, key_num_in_this_hash);
     }
 }
 
 template<int KEY_BUCKET_SIZE>
 __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     int num_unique_hash,
+    int max_num_keys,
     int* num_hash_,
     int* num_keys_,
     const int* unique_by_hash_hash_,
@@ -836,9 +879,10 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
 
     if (hash_idx_local != -1) { // this is a new hash
         hash_idx = new_hash_idx_start + hash_idx_local;
-        from_hash_to_hash_idx_[hash] = hash_idx;
     }
-    __syncthreads();
+    // if max_num_hash == mod, then hash idx is impossible to be >= max_num_hash.
+    // if max_num_hash <  mod, then hash idx is   possible to be >= max_num_hash, then we need to add some protection codes here.
+    from_hash_to_hash_idx_[hash] = hash_idx;
 
     GridKey key_in_this_hash[KEY_BUCKET_SIZE];                // content in key bucket
     int key_idx_in_this_hash[KEY_BUCKET_SIZE];                // content in key bucket
@@ -917,12 +961,19 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
             continue;
         } else if (flag_new_key[i] == 1) {
             int key_idx_global = new_key_idx_start + key_idx_local[i];
-            GridKey key = key_to_insert[i];
-            key_in_this_hash    [key_num_in_this_hash] = key;
+            if (key_idx_global > max_num_keys) {
+                // it means key indices are ran out, so we don't put this key into key bucket.
+                // and we set this key's unique_by_key_key_idx_ to -1, so the following kernel will ignore this key.
+                unique_by_key_key_idx_[key_start + i] = -1;
+                continue;
+            }
+            key_in_this_hash    [key_num_in_this_hash] = key_to_insert[i];
             key_idx_in_this_hash[key_num_in_this_hash] = key_idx_global;
             key_num_in_this_hash = key_num_in_this_hash + 1;
             unique_by_key_key_idx_[key_start + i] = key_idx_global;
         } else { // flag_new_key[i] == 2
+            // key bucket hash no room for this key, so unique_by_key_key_idx_ set to -1, 
+            // so the following kernel will ignore this key.
             unique_by_key_key_idx_[key_start + i] = -1;
         }
     }
