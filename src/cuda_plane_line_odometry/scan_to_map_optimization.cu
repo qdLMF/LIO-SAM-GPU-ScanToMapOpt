@@ -11,14 +11,18 @@
 
 
 CUDAScanToMapOpt::CUDAScanToMapOpt(
-    float resolution_,
-    unsigned int mod_, 
+    float surf_resolution_,
+    unsigned int surf_mod_, 
     unsigned int surf_key_bucket_size_,
     unsigned int surf_point_bucket_size_,
-    unsigned int surf_reduction_factor_, 
+    unsigned int surf_reduction_factor_nrtr_, 
+    unsigned int surf_reduction_factor_dntr_, 
+    float corn_resolution_,
+    unsigned int corn_mod_, 
     unsigned int corn_key_bucket_size_,
     unsigned int corn_point_bucket_size_,
-    unsigned int corn_reduction_factor_, 
+    unsigned int corn_reduction_factor_nrtr_, 
+    unsigned int corn_reduction_factor_dntr_, 
     unsigned int max_size_surf_insertion_,
     unsigned int max_size_corn_insertion_,
     unsigned int max_size_surf_query_,
@@ -39,15 +43,17 @@ CUDAScanToMapOpt::CUDAScanToMapOpt(
     surf_hash_map = GetCUDACloudHashMapInstance(surf_key_bucket_size_, surf_point_bucket_size_);
     corn_hash_map = GetCUDACloudHashMapInstance(corn_key_bucket_size_, corn_point_bucket_size_);
     surf_hash_map->Allocate(
-        resolution_,
-        mod_,
-        surf_reduction_factor_,
+        surf_resolution_,
+        surf_mod_,
+        surf_reduction_factor_nrtr_, 
+        surf_reduction_factor_dntr_, 
         max_size_surf_insertion_
     );
     corn_hash_map->Allocate(
-        resolution_,
-        mod_,
-        corn_reduction_factor_,
+        corn_resolution_,
+        corn_mod_,
+        corn_reduction_factor_nrtr_, 
+        corn_reduction_factor_dntr_, 
         max_size_corn_insertion_
     );
 

@@ -159,18 +159,20 @@ template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
 void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Allocate(
     float resolution_, 
     unsigned int mod_, 
-    unsigned int reduction_factor_, 
+    unsigned int reduction_factor_nrtr_, 
+    unsigned int reduction_factor_dntr_, 
     unsigned int max_insertion_size_
 ) {
     resolution = resolution_;
     mod = mod_;
-    reduction_factor = reduction_factor_;
+    reduction_factor_nrtr = reduction_factor_nrtr_;
+    reduction_factor_dntr = reduction_factor_dntr_;
     max_num_hash = mod_;
-    max_num_keys = mod_ * KEY_BUCKET_SIZE / reduction_factor_; /* max_num_hash * KEY_BUCKET_SIZE / reduction_factor */
+    max_num_keys = mod_ * KEY_BUCKET_SIZE * reduction_factor_nrtr_ / reduction_factor_dntr_; /* max_num_hash * KEY_BUCKET_SIZE * reduction_factor_nrtr_ / reduction_factor_dntr_ */
     max_num_keys_per_hash = KEY_BUCKET_SIZE;
     max_num_points_per_key = POINT_BUCKET_SIZE;
     key_bucket_max_size = mod_ * KEY_BUCKET_SIZE; /* max_num_hash * KEY_BUCKET_SIZE */
-    point_bucket_max_size = mod_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE / reduction_factor_; /* max_num_keys * POINT_BUCKET_SIZE */
+    point_bucket_max_size = mod_ * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE * reduction_factor_nrtr_ / reduction_factor_dntr_; /* max_num_keys * POINT_BUCKET_SIZE */
     max_insertion_size = max_insertion_size_;
 
     // ----------------------------------------------------------------------------------------------------

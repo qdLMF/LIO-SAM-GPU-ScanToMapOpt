@@ -26,14 +26,18 @@ struct CUDAScanToMapOpt {
 public :
     CUDAScanToMapOpt() = delete;
     explicit CUDAScanToMapOpt(
-        float resolution_,
-        unsigned int mod_, 
+        float surf_resolution_,
+        unsigned int surf_mod_, 
         unsigned int surf_key_bucket_size_,
         unsigned int surf_point_bucket_size_,
-        unsigned int surf_reduction_factor_, 
+        unsigned int surf_reduction_factor_nrtr_, // numerator
+        unsigned int surf_reduction_factor_dntr_, // denominator
+        float corn_resolution_,
+        unsigned int corn_mod_, 
         unsigned int corn_key_bucket_size_,
         unsigned int corn_point_bucket_size_,
-        unsigned int corn_reduction_factor_, 
+        unsigned int corn_reduction_factor_nrtr_, 
+        unsigned int corn_reduction_factor_dntr_, 
         unsigned int max_size_surf_insertion_,
         unsigned int max_size_corn_insertion_,
         unsigned int max_size_surf_query_,

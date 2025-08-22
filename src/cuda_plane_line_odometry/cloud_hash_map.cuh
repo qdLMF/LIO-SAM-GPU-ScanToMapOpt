@@ -43,7 +43,8 @@ public :
     virtual void Allocate(
         float resolution_, 
         unsigned int mod_, 
-        unsigned int reduction_factor_, 
+        unsigned int reduction_factor_nrtr_, // numerator
+        unsigned int reduction_factor_dntr_, // denominator
         unsigned int max_insertion_size_
     ) = 0;
     virtual void InsertV2(
@@ -70,7 +71,8 @@ protected :
 protected : 
     float        resolution;
     unsigned int mod;
-    unsigned int reduction_factor;
+    unsigned int reduction_factor_nrtr;
+    unsigned int reduction_factor_dntr;
     unsigned int max_num_hash;
     unsigned int max_num_keys;
     unsigned int max_num_keys_per_hash;
@@ -90,7 +92,8 @@ protected :
 public : 
     float        get_resolution()                         { return resolution;                         }
     unsigned int get_mod()                                { return mod;                                }
-    unsigned int get_reduction_factor()                   { return reduction_factor;                   }
+    unsigned int get_reduction_factor_nrtr()              { return reduction_factor_nrtr;              }
+    unsigned int get_reduction_factor_dntr()              { return reduction_factor_dntr;              }
     unsigned int get_max_num_hash()                       { return max_num_hash;                       }
     unsigned int get_max_num_keys()                       { return max_num_keys;                       }
     unsigned int get_max_num_keys_per_hash()              { return max_num_keys_per_hash;              }
@@ -117,7 +120,8 @@ public :
     void Allocate(
         float resolution_, 
         unsigned int mod_, 
-        unsigned int reduction_factor_, 
+        unsigned int reduction_factor_nrtr_, 
+        unsigned int reduction_factor_dntr_, 
         unsigned int max_insertion_size_
     ) override;
     void InsertV2(
@@ -185,5 +189,14 @@ std::unique_ptr<CUDACloudHashMapBase> GetCUDACloudHashMapInstance(
     int point_bucket_size
 );
 
+// TODO : 
+// Three situations and corresponding strategies about adjusting capacity of hash map :
+// max_num_hash is not enough, max_num_keys is enough : 
+//     DoubleTheHashAndDoubleTheReductionFactor(), max_num_keys stays the same
+// max_num_hash is not enough, max_num_keys is also not enough : 
+//     DoubleTheHash(), max_num_keys doubles
+//     DoubleTheHashAndDecreaseTheReductionFactor(numerator_increment), gradually increase max_num_keys by increasing reduction_factor_numerator by a small step
+// max_num_hash is enough, max_num_keys is not enough : 
+//     DecreaseTheReductionFactor(numerator_increment), gradually increase max_num_keys by increasing reduction_factor_numerator by a small step
 
 #endif //LIO_SAM_CUDA_CLOUD_HASH_MAP_CUH

@@ -265,14 +265,18 @@ public:
 
         if (useGPULocalMap) {
             cuda_scan_to_map_opt = std::make_unique<CUDAScanToMapOpt>(
-                gpuLocalMapVoxelSize, 
-                gpuLocalMapMOD, 
+                gpuLocalMapSurfVoxelSize, 
+                gpuLocalMapSurfMOD, 
                 gpuLocalMapSurfKeyBucketSize, 
                 gpuLocalMapSurfPointBucketSize, 
-                gpuLocalMapSurfReductionFactor, 
+                gpuLocalMapSurfReductionFactorNRTR, 
+                gpuLocalMapSurfReductionFactorDNTR, 
+                gpuLocalMapCornVoxelSize, 
+                gpuLocalMapCornMOD, 
                 gpuLocalMapCornKeyBucketSize, 
                 gpuLocalMapCornPointBucketSize, 
-                gpuLocalMapCornReductionFactor, 
+                gpuLocalMapCornReductionFactorNRTR, 
+                gpuLocalMapCornReductionFactorDNTR, 
                 gpuLocalMapMaxNumSurfPointsPerInsertion, 
                 gpuLocalMapMaxNumCornPointsPerInsertion, 
                 gpuLocalMapMaxNumSurfPointsPerQuery, 
