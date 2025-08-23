@@ -64,6 +64,9 @@ public :
     virtual void ClearBuckets() = 0;
     virtual void ClearTempVectors() = 0;
     virtual void Reset() = 0;
+    virtual void ExpandKeyCapacity(
+        int reduction_factor_nrtr_increment
+    ) = 0;
 
 protected :
     cudaStream_t stream;
@@ -71,7 +74,7 @@ protected :
 protected : 
     float        resolution;
     unsigned int mod;
-    unsigned int reduction_factor_nrtr;
+    unsigned int reduction_factor_nrtr; unsigned int reduction_factor_nrtr_curr;
     unsigned int reduction_factor_dntr;
     unsigned int max_num_hash;
     unsigned int max_num_keys;
@@ -141,6 +144,9 @@ public :
     void ClearBuckets() override;
     void ClearTempVectors() override;
     void Reset() override;
+    void ExpandKeyCapacity(
+        int reduction_factor_nrtr_increment
+    ) override;
 
 public :
     thrust::device_vector<float4> dev_point;
@@ -190,13 +196,10 @@ std::unique_ptr<CUDACloudHashMapBase> GetCUDACloudHashMapInstance(
 );
 
 // TODO : 
-// Three situations and corresponding strategies about adjusting capacity of hash map :
 // max_num_hash is not enough, max_num_keys is enough : 
 //     DoubleTheHashAndDoubleTheReductionFactor(), max_num_keys stays the same
 // max_num_hash is not enough, max_num_keys is also not enough : 
 //     DoubleTheHash(), max_num_keys doubles
 //     DoubleTheHashAndDecreaseTheReductionFactor(numerator_increment), gradually increase max_num_keys by increasing reduction_factor_numerator by a small step
-// max_num_hash is enough, max_num_keys is not enough : 
-//     DecreaseTheReductionFactor(numerator_increment), gradually increase max_num_keys by increasing reduction_factor_numerator by a small step
 
 #endif //LIO_SAM_CUDA_CLOUD_HASH_MAP_CUH

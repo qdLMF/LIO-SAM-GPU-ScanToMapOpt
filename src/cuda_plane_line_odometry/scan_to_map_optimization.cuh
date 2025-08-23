@@ -91,6 +91,14 @@ public :
     void ResetSurfMap();
     void ResetCornMap();
     void ResetSurfAndCornMap();
+    void ExpandSurfKeyCapacity(int reduction_factor_nrtr_increment);
+    void ExpandCornKeyCapacity(int reduction_factor_nrtr_increment);
+    float GetSurfKeyUsage0();
+    float GetSurfKeyUsage1();
+    float GetSurfHashUsage();
+    float GetCornKeyUsage0();
+    float GetCornKeyUsage1();
+    float GetCornHashUsage();
 
 public :
     thrust::device_vector<float4> surf_ori;
@@ -150,14 +158,6 @@ public :
 
 public : 
     int opt_count = 0;
-
-public : 
-    float GetSurfKeyUsage0();
-    float GetSurfKeyUsage1();
-    float GetSurfHashUsage();
-    float GetCornKeyUsage0();
-    float GetCornKeyUsage1();
-    float GetCornHashUsage();
 };
 
 #endif //LIO_SAM_CUDA_SCAN_TO_MAP_OPTIMIZATION_CUH

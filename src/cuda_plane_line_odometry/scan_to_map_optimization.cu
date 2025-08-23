@@ -555,6 +555,14 @@ void CUDAScanToMapOpt::PrintStates() {
     }
 }
 
+void CUDAScanToMapOpt::ExpandSurfKeyCapacity(int reduction_factor_nrtr_increment) {
+    surf_hash_map->ExpandKeyCapacity(reduction_factor_nrtr_increment);
+}
+
+void CUDAScanToMapOpt::ExpandCornKeyCapacity(int reduction_factor_nrtr_increment) {
+    corn_hash_map->ExpandKeyCapacity(reduction_factor_nrtr_increment);
+}
+
 float CUDAScanToMapOpt::GetSurfKeyUsage0() {
     return float(surf_hash_map->get_num_keys()) / surf_hash_map->get_max_num_keys();
 }

@@ -164,14 +164,15 @@ public:
     // cuda_plane_line_odometry
     thrust::host_vector<float4> surf_map_3d;
     thrust::host_vector<float4> surf_pts_3d;
-    thrust::host_vector<float4> corner_map_3d;
-    thrust::host_vector<float4> corner_pts_3d;
+    thrust::host_vector<float4> corn_map_3d;
+    thrust::host_vector<float4> corn_pts_3d;
     std::unique_ptr<CUDAScanToMapOpt> cuda_scan_to_map_opt;
     std::set<int> gpu_local_map_scan_idx_set;
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMap_GPU;
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMapDS_GPU;
     pcl::PointCloud<PointType>::Ptr laserCloudSurfFromMap_GPU;
     pcl::PointCloud<PointType>::Ptr laserCloudSurfFromMapDS_GPU;
+    pcl::PointCloud<PointType>::Ptr surroundingKeyPosesDS_GPU;
     int laserCloudCornerFromMapDSNum_GPU;
     int laserCloudSurfFromMapDSNum_GPU;
     int max_num_scan_in_gpu_local_map;
@@ -256,6 +257,7 @@ public:
         laserCloudCornerFromMapDS_GPU.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMap_GPU.reset(new pcl::PointCloud<PointType>());
         laserCloudSurfFromMapDS_GPU.reset(new pcl::PointCloud<PointType>());
+        surroundingKeyPosesDS_GPU.reset(new pcl::PointCloud<PointType>());
 
         for (int i = 0; i < 6; ++i){
             transformTobeMapped[i] = 0;
@@ -283,15 +285,15 @@ public:
                 gpuLocalMapMaxNumCornPointsPerQuery
             );
 
-            surf_map_3d  .reserve(gpuLocalMapMaxNumSurfPointsPerInsertion);
-            surf_pts_3d  .reserve(gpuLocalMapMaxNumSurfPointsPerQuery    );
-            corner_map_3d.reserve(gpuLocalMapMaxNumCornPointsPerInsertion);
-            corner_pts_3d.reserve(gpuLocalMapMaxNumCornPointsPerQuery    );
+            surf_map_3d.reserve(gpuLocalMapMaxNumSurfPointsPerInsertion);
+            surf_pts_3d.reserve(gpuLocalMapMaxNumSurfPointsPerQuery    );
+            corn_map_3d.reserve(gpuLocalMapMaxNumCornPointsPerInsertion);
+            corn_pts_3d.reserve(gpuLocalMapMaxNumCornPointsPerQuery    );
 
-            surf_map_3d  .resize(gpuLocalMapMaxNumSurfPointsPerInsertion);
-            surf_pts_3d  .resize(gpuLocalMapMaxNumSurfPointsPerQuery    );
-            corner_map_3d.resize(gpuLocalMapMaxNumCornPointsPerInsertion);
-            corner_pts_3d.resize(gpuLocalMapMaxNumCornPointsPerQuery    );
+            surf_map_3d.resize(gpuLocalMapMaxNumSurfPointsPerInsertion);
+            surf_pts_3d.resize(gpuLocalMapMaxNumSurfPointsPerQuery    );
+            corn_map_3d.resize(gpuLocalMapMaxNumCornPointsPerInsertion);
+            corn_pts_3d.resize(gpuLocalMapMaxNumCornPointsPerQuery    );
         }
     }
 
@@ -961,19 +963,105 @@ public:
                 break;
         }
 
+        if (useGPULocalMap) {
+            surroundingKeyPosesDS_GPU = surroundingKeyPosesDS;
+        }
+
         extractCloud(surroundingKeyPosesDS);
+    }
+
+    void extractCloudWhenGPUKeyOverflow() {
+        reset_gpu_local_map = true;
+        gpu_local_map_scan_idx_set.clear();
+        std::set<int> remove_dup; remove_dup.clear(); // remove duplicates in surroundingKeyPosesDS_GPU
+
+        // fuse the map
+        laserCloudCornerFromMap_GPU->clear();
+        laserCloudSurfFromMap_GPU->clear();
+        int num_scan_in_gpu_local_map = 0;
+        for (int i = 0; i < (int)surroundingKeyPosesDS_GPU->size(); ++i) {
+            if (pointDistance(surroundingKeyPosesDS_GPU->points[i], cloudKeyPoses3D->back()) > surroundingKeyframeSearchRadius)
+                continue;
+
+            int thisKeyInd = (int)surroundingKeyPosesDS_GPU->points[i].intensity;
+            if (laserCloudMapContainer.find(thisKeyInd) != laserCloudMapContainer.end()) {
+                if (remove_dup.find(thisKeyInd) == remove_dup.end()) {
+                    remove_dup.insert(thisKeyInd);
+                } else {
+                    continue;
+                }
+
+                if (gpu_local_map_scan_idx_set.find(thisKeyInd) == gpu_local_map_scan_idx_set.end()) {
+                    gpu_local_map_scan_idx_set.insert(thisKeyInd);
+
+                    *laserCloudCornerFromMap_GPU += laserCloudMapContainer[thisKeyInd].first;
+                    *laserCloudSurfFromMap_GPU   += laserCloudMapContainer[thisKeyInd].second;
+                    num_scan_in_gpu_local_map++;
+                }
+            } else {
+                if (remove_dup.find(thisKeyInd) == remove_dup.end()) {
+                    remove_dup.insert(thisKeyInd);
+                } else {
+                    continue;
+                }
+
+                // transformed cloud not available
+                pcl::PointCloud<PointType> laserCloudCornerTemp = *transformPointCloud(cornerCloudKeyFrames[thisKeyInd], &cloudKeyPoses6D->points[thisKeyInd]);
+                pcl::PointCloud<PointType> laserCloudSurfTemp   = *transformPointCloud(surfCloudKeyFrames[thisKeyInd],   &cloudKeyPoses6D->points[thisKeyInd]);
+                laserCloudMapContainer[thisKeyInd] = make_pair(laserCloudCornerTemp, laserCloudSurfTemp);
+
+                if (gpu_local_map_scan_idx_set.find(thisKeyInd) == gpu_local_map_scan_idx_set.end()) {
+                    gpu_local_map_scan_idx_set.insert(thisKeyInd);
+
+                    *laserCloudCornerFromMap_GPU += laserCloudMapContainer[thisKeyInd].first;
+                    *laserCloudSurfFromMap_GPU   += laserCloudMapContainer[thisKeyInd].second;
+                    num_scan_in_gpu_local_map++;
+                }
+            }
+        }
+        max_num_scan_in_gpu_local_map = max(max_num_scan_in_gpu_local_map, num_scan_in_gpu_local_map);
+
+        // Downsample the surrounding corner key frames (or map)
+        downSizeFilterCorner.setInputCloud(laserCloudCornerFromMap_GPU);
+        downSizeFilterCorner.filter(*laserCloudCornerFromMapDS_GPU);
+        laserCloudCornerFromMapDSNum_GPU = laserCloudCornerFromMapDS_GPU->size();
+        // Downsample the surrounding surf key frames (or map)
+        downSizeFilterSurf.setInputCloud(laserCloudSurfFromMap_GPU);
+        downSizeFilterSurf.filter(*laserCloudSurfFromMapDS_GPU);
+        laserCloudSurfFromMapDSNum_GPU = laserCloudSurfFromMapDS_GPU->size();
+
+        assert(laserCloudSurfFromMapDS_GPU  ->size() <= gpuLocalMapMaxNumSurfPointsPerInsertion);
+        assert(laserCloudCornerFromMapDS_GPU->size() <= gpuLocalMapMaxNumCornPointsPerInsertion);
+        surf_map_3d.resize(laserCloudSurfFromMapDS_GPU->size(), make_float4(0.0, 0.0, 0.0, 0.0));
+        for(int i = 0; i < laserCloudSurfFromMapDS_GPU->size(); i++) {
+            surf_map_3d[i] = { 
+                laserCloudSurfFromMapDS_GPU->points[i].x,
+                laserCloudSurfFromMapDS_GPU->points[i].y,
+                laserCloudSurfFromMapDS_GPU->points[i].z,
+                laserCloudSurfFromMapDS_GPU->points[i].intensity 
+            };
+        }
+        corn_map_3d.resize(laserCloudCornerFromMapDS_GPU->size(), make_float4(0.0, 0.0, 0.0, 0.0));
+        for(int i = 0; i < laserCloudCornerFromMapDS_GPU->size(); i++) {
+            corn_map_3d[i] = { 
+                laserCloudCornerFromMapDS_GPU->points[i].x,
+                laserCloudCornerFromMapDS_GPU->points[i].y,
+                laserCloudCornerFromMapDS_GPU->points[i].z,
+                laserCloudCornerFromMapDS_GPU->points[i].intensity 
+            };
+        }
     }
 
     void extractCloud(pcl::PointCloud<PointType>::Ptr cloudToExtract)
     {
         if (useGPULocalMap) {
             reset_gpu_local_map = \
-               (float(cuda_scan_to_map_opt->surf_hash_map->get_num_hash            ()) / cuda_scan_to_map_opt->surf_hash_map->get_max_num_hash         ()) >= 0.75
-            || (float(cuda_scan_to_map_opt->surf_hash_map->get_num_keys            ()) / cuda_scan_to_map_opt->surf_hash_map->get_max_num_keys         ()) >= 0.75
-            || (float(cuda_scan_to_map_opt->surf_hash_map->get_key_overflow_warning()) / cuda_scan_to_map_opt->surf_hash_map->get_max_num_keys_per_hash()) >= 0.75
-            || (float(cuda_scan_to_map_opt->corn_hash_map->get_num_hash            ()) / cuda_scan_to_map_opt->corn_hash_map->get_max_num_hash         ()) >= 0.75
-            || (float(cuda_scan_to_map_opt->corn_hash_map->get_num_keys            ()) / cuda_scan_to_map_opt->corn_hash_map->get_max_num_keys         ()) >= 0.75
-            || (float(cuda_scan_to_map_opt->corn_hash_map->get_key_overflow_warning()) / cuda_scan_to_map_opt->corn_hash_map->get_max_num_keys_per_hash()) >= 0.75
+               cuda_scan_to_map_opt->GetSurfKeyUsage0() >= 0.75
+            || cuda_scan_to_map_opt->GetSurfKeyUsage1() >= 0.75
+            || cuda_scan_to_map_opt->GetSurfHashUsage() >= 0.75
+            || cuda_scan_to_map_opt->GetCornKeyUsage0() >= 0.75
+            || cuda_scan_to_map_opt->GetCornKeyUsage1() >= 0.75
+            || cuda_scan_to_map_opt->GetCornHashUsage() >= 0.75
             || cuda_scan_to_map_opt->opt_count >= gpuLocalMapResetFreq 
             || laserCloudMapContainer.empty();
         } else {
@@ -1537,18 +1625,18 @@ public:
                 };
             }
 
-            corner_map_3d.resize(laserCloudCornerFromMapDS_GPU->size(), make_float4(0.0, 0.0, 0.0, 0.0));
+            corn_map_3d.resize(laserCloudCornerFromMapDS_GPU->size(), make_float4(0.0, 0.0, 0.0, 0.0));
             for(int i = 0; i < laserCloudCornerFromMapDS_GPU->size(); i++) {
-                corner_map_3d[i] = { 
+                corn_map_3d[i] = { 
                     laserCloudCornerFromMapDS_GPU->points[i].x,
                     laserCloudCornerFromMapDS_GPU->points[i].y,
                     laserCloudCornerFromMapDS_GPU->points[i].z,
                     laserCloudCornerFromMapDS_GPU->points[i].intensity 
                 };
             }
-            corner_pts_3d.resize(laserCloudCornerLastDS->size(), make_float4(0.0, 0.0, 0.0, 0.0));
+            corn_pts_3d.resize(laserCloudCornerLastDS->size(), make_float4(0.0, 0.0, 0.0, 0.0));
             for(int i = 0; i < laserCloudCornerLastDS->size(); i++) {
-                corner_pts_3d[i] = { 
+                corn_pts_3d[i] = { 
                     laserCloudCornerLastDS->points[i].x,
                     laserCloudCornerLastDS->points[i].y,
                     laserCloudCornerLastDS->points[i].z,
@@ -1573,15 +1661,68 @@ public:
             } else {
                 printf("reset_gpu_local_map : false \n");
             }
-            cuda_scan_to_map_opt->InsertSurfAndCornToHashMap(surf_map_3d, corner_map_3d);
-            
+            cuda_scan_to_map_opt->InsertSurfAndCornToHashMap(surf_map_3d, corn_map_3d);
+
+            // check if need to expand key capacity
+            // 0 : normal, 1 : too much, 2 : overflow
+            int surf_status = cuda_scan_to_map_opt->GetSurfKeyUsage0() < 0.5 ? 0 : (cuda_scan_to_map_opt->GetSurfKeyUsage0() >= 1 ? 2 : 1);
+            int corn_status = cuda_scan_to_map_opt->GetCornKeyUsage0() < 0.5 ? 0 : (cuda_scan_to_map_opt->GetCornKeyUsage0() >= 1 ? 2 : 1);
+            if (surf_status == 2 || corn_status == 2) { // TODO : this branch is not tested yet
+                if (!reset_gpu_local_map) {
+                    extractCloudWhenGPUKeyOverflow(); // surf_map_3d and corn_map_3d are changed
+                }
+                cuda_scan_to_map_opt->ResetSurfAndCornMap();
+                cuda_scan_to_map_opt->InsertSurfAndCornToHashMap(surf_map_3d, corn_map_3d);
+                while (surf_status == 1 || surf_status == 2) {
+                    if (surf_status == 1) {
+                        printf("expand hashmap key capacity : surf key capacity increases by 1 unit \n");
+                        cuda_scan_to_map_opt->ExpandSurfKeyCapacity(1);
+                    }
+                    if (surf_status == 2) {
+                        printf("expand hashmap key capacity : surf key capacity increases by 1 unit and rebuild surf map \n");
+                        cuda_scan_to_map_opt->ExpandSurfKeyCapacity(1);
+                        cuda_scan_to_map_opt->ResetSurfMap();
+                        cuda_scan_to_map_opt->InsertSurfToHashMap(surf_map_3d);
+                    }
+                    surf_status = cuda_scan_to_map_opt->GetSurfKeyUsage0() < 0.5 ? 0 : (cuda_scan_to_map_opt->GetSurfKeyUsage0() >= 1 ? 2 : 1);
+                }
+                while (corn_status == 1 || corn_status == 2) {
+                    if (corn_status == 1) {
+                        printf("expand hashmap key capacity : corn key capacity increases by 1 unit \n");
+                        cuda_scan_to_map_opt->ExpandCornKeyCapacity(1);
+                    }
+                    if (corn_status == 2) {
+                        printf("expand hashmap key capacity : corn key capacity increases by 1 unit and rebuild corn map \n");
+                        cuda_scan_to_map_opt->ExpandCornKeyCapacity(1);
+                        cuda_scan_to_map_opt->ResetCornMap();
+                        cuda_scan_to_map_opt->InsertCornToHashMap(corn_map_3d);
+                    }
+                    corn_status = cuda_scan_to_map_opt->GetCornKeyUsage0() < 0.5 ? 0 : (cuda_scan_to_map_opt->GetCornKeyUsage0() >= 1 ? 2 : 1);
+                }
+            } else if (surf_status == 1 || corn_status == 1) {
+                if (surf_status == 1) {
+                    while (surf_status == 1) {
+                        printf("expand hashmap key capacity : surf key capacity increases by 1 unit \n");
+                        cuda_scan_to_map_opt->ExpandSurfKeyCapacity(1);
+                        surf_status = cuda_scan_to_map_opt->GetSurfKeyUsage0() < 0.5 ? 0 : (cuda_scan_to_map_opt->GetSurfKeyUsage0() >= 1 ? 2 : 1);
+                    }
+                }
+                if (corn_status == 1) {
+                    while (corn_status == 1) {
+                        printf("expand hashmap key capacity : corn key capacity increases by 1 unit \n");
+                        cuda_scan_to_map_opt->ExpandCornKeyCapacity(1);
+                        corn_status = cuda_scan_to_map_opt->GetCornKeyUsage0() < 0.5 ? 0 : (cuda_scan_to_map_opt->GetCornKeyUsage0() >= 1 ? 2 : 1);
+                    }
+                }
+            }
+
             auto dur_build_hashmap = std::chrono::system_clock::now() - now_build_hashmap;
             total_dur_build_hashmap += dur_build_hashmap;
 
 
             cuda_scan_to_map_opt->SetTrans6DOFInit(trans6_init);
             cuda_scan_to_map_opt->SetSurfPoints(surf_pts_3d);
-            cuda_scan_to_map_opt->SetCornPoints(corner_pts_3d);
+            cuda_scan_to_map_opt->SetCornPoints(corn_pts_3d);
             while( !(cuda_scan_to_map_opt->iter_count >= 30 || cuda_scan_to_map_opt->converged) ) {
                 cuda_scan_to_map_opt->TransformSurfAndCornPoints();
 

@@ -165,7 +165,7 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Allocate(
 ) {
     resolution = resolution_;
     mod = mod_;
-    reduction_factor_nrtr = reduction_factor_nrtr_;
+    reduction_factor_nrtr = reduction_factor_nrtr_; reduction_factor_nrtr_curr = reduction_factor_nrtr;
     reduction_factor_dntr = reduction_factor_dntr_;
     max_num_hash = mod_;
     max_num_keys = mod_ * KEY_BUCKET_SIZE * reduction_factor_nrtr_ / reduction_factor_dntr_; /* max_num_hash * KEY_BUCKET_SIZE * reduction_factor_nrtr_ / reduction_factor_dntr_ */
@@ -633,6 +633,28 @@ void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::Query(
         );
     }
 }
+
+template<int KEY_BUCKET_SIZE, int POINT_BUCKET_SIZE>
+void CUDACloudHashMap<KEY_BUCKET_SIZE, POINT_BUCKET_SIZE>::ExpandKeyCapacity(
+    int reduction_factor_nrtr_increment
+) {
+    if (int(reduction_factor_nrtr_curr) + reduction_factor_nrtr_increment < 1) {
+        return;
+    }
+
+    cudaStreamSynchronize(stream);
+
+    reduction_factor_nrtr_curr += reduction_factor_nrtr_increment;
+    max_num_keys = mod * KEY_BUCKET_SIZE * reduction_factor_nrtr_curr / reduction_factor_dntr;
+    point_bucket_max_size = mod * KEY_BUCKET_SIZE * POINT_BUCKET_SIZE * reduction_factor_nrtr_curr / reduction_factor_dntr;
+
+    dev_point_bucket_point    .reserve(point_bucket_max_size);
+    dev_point_bucket_point_num.reserve(         max_num_keys);
+
+    dev_point_bucket_point    .resize(point_bucket_max_size, make_float4(0.0, 0.0, 0.0, 0.0));
+    dev_point_bucket_point_num.resize(         max_num_keys,                               0);
+}
+
 template struct CUDACloudHashMap< 8, 16>;
 template struct CUDACloudHashMap< 8, 32>;
 template struct CUDACloudHashMap<16, 16>;
