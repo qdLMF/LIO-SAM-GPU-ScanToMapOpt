@@ -101,7 +101,7 @@ lio_sam:
   gpuLocalMapCornMOD: 50000
   gpuLocalMapSurfReductionFactorNRTR:   8 # numerator
   gpuLocalMapSurfReductionFactorDNTR: 128 # denominator
-  gpuLocalMapCornReductionFactorNRTR:  8 # numerator
+  gpuLocalMapCornReductionFactorNRTR:   8 # numerator
   gpuLocalMapCornReductionFactorDNTR: 128 # denominator
   gpuLocalMapSurfKeyBucketSize:   16 # available values :  8 , 16
   gpuLocalMapSurfPointBucketSize: 32 # available values : 16 , 32

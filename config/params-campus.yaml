@@ -93,7 +93,7 @@ lio_sam:
   globalMapVisualizationLeafSize: 1.0           # meters, global map visualization cloud density
 
   # GPU Local Map
-  useGPULocalMap: true
+  useGPULocalMap: false
   gpuLocalMapResetFreq: 50
   gpuLocalMapMaxNumSurfPointsPerInsertion: 204800
   gpuLocalMapMaxNumCornPointsPerInsertion: 102400
