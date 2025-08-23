@@ -90,22 +90,22 @@ lio_sam:
 
   # GPU Local Map
   useGPULocalMap: true
-  gpuLocalMapResetFreq: 50
+  gpuLocalMapResetFreq: 10
   gpuLocalMapMaxNumSurfPointsPerInsertion: 204800
   gpuLocalMapMaxNumCornPointsPerInsertion: 102400
   gpuLocalMapMaxNumSurfPointsPerQuery: 20480
   gpuLocalMapMaxNumCornPointsPerQuery: 10240
   gpuLocalMapSurfVoxelSize: 0.5
   gpuLocalMapCornVoxelSize: 0.5
-  gpuLocalMapSurfMOD: 100000
+  gpuLocalMapSurfMOD: 200000
   gpuLocalMapCornMOD: 50000
-  gpuLocalMapSurfReductionFactorNRTR:   9 # numerator
+  gpuLocalMapSurfReductionFactorNRTR:   8 # numerator
   gpuLocalMapSurfReductionFactorDNTR: 128 # denominator
-  gpuLocalMapCornReductionFactorNRTR:   9 # numerator
+  gpuLocalMapCornReductionFactorNRTR:  8 # numerator
   gpuLocalMapCornReductionFactorDNTR: 128 # denominator
   gpuLocalMapSurfKeyBucketSize:   16 # available values :  8 , 16
   gpuLocalMapSurfPointBucketSize: 32 # available values : 16 , 32
-  gpuLocalMapCornKeyBucketSize:    8 # available values :  8 , 16
+  gpuLocalMapCornKeyBucketSize:   16 # available values :  8 , 16
   gpuLocalMapCornPointBucketSize: 16 # available values : 16 , 32
 
 

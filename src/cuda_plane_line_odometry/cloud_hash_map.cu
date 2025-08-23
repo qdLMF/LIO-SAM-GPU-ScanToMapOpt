@@ -1017,7 +1017,7 @@ __global__ void kernel_insert_key_to_key_bucket_when_map_is_not_empty(
     };
 
     if (key_num_in_this_hash >= KEY_BUCKET_SIZE * 3 / 4) {
-        atomicMax(key_overflow_warning, num_keys);
+        atomicMax(key_overflow_warning, key_num_in_this_hash);
     }
 }
 
