@@ -27,14 +27,13 @@ On my machine (Orin-NX-8GB, walking_dataset.bag), GPU version implemented by thi
 
 
 ## Dependencies
-The essential dependencies are as same as [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM), tested on Ubuntu 18.04 & Ros Melodic.
+The essential dependencies are as same as [LIO-SAM](https://github.com/TixiaoShan/LIO-SAM)
 
-In addition, the CUDA reimplementation of the line/plane odometry requires : 
+My Orin-NX-8GB's specific enviroment :
+- Ubuntu 20.04, Ros Noetic, JetPack 5.10
 - C++14
-- [CUDA](https://developer.nvidia.com/cuda-downloads) (>= 11.0)
-- CUBLAS
-- thrust
-- [Eigen](https://eigen.tuxfamily.org/) (>= 3.3.9)
+- [CUDA](https://developer.nvidia.com/cuda-downloads) 11.4
+- [Eigen](https://eigen.tuxfamily.org/) 3.3.7
 
 
 # How To Build
