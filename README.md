@@ -55,7 +55,7 @@ The basic steps to compile and run this repo is as same as [LIO-SAM](https://git
 </tr>
 
 <tr>
-<th>extract<br>surrounding<br>key frames</th><th>build<br>kdtree</th><th>one<br>frame</th><th>extract<br>surrounding<br>key frames</th><th>update<br>hashmap</th><th>one<br>KNN</th><th>one<br>frame</th><th>speed-up</th>
+<th>extract<br>surrounding<br>key frames</th><th>build<br>kdtree</th><th>one<br>frame</th><th>extract<br>surrounding<br>key frames</th><th>incrementally<br>update<br>hashmap</th><th>one<br>KNN</th><th>one<br>frame</th><th>speed-up</th>
 </tr>
 
 <tr>
