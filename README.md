@@ -10,7 +10,7 @@ Modifications are as follow :
 This repository reimplements the line/plane odometry in scan2MapOptimization() of mapOptimization.cpp with CUDA. 
 
 On my machine (Orin-NX-8GB, walking_dataset.bag, with OpenMP), original CPU version: 
-- average cost of extracting surrounding scans is more than 30ms
+- average cost of extracting surrounding key frames is more than 30ms
 - average cost of building local map is about 20ms
 - average cost of KNN search and optimization is about 30ms
 - average cost of all operations in one frame is about 85ms
@@ -20,7 +20,7 @@ This repository replaces pcl's kdtree with a point cloud hash map (inspired by i
 Meanwhile, other parts of the line/plane odometry (jacobians & residuals etc) are also implemented with CUDA. 
 
 On my machine (Orin-NX-8GB, walking_dataset.bag), GPU version implemented by this project :
-- average cost of extracting surrounding scans is down to about 2.74ms
+- average cost of extracting surrounding key frames is down to about 2.74ms
 - average cost of incrementally updating local map is down to about 1.16ms
 - average cost of one 5-neighbour KNN search is down to about 1.40ms
 - average cost of all operations in one frame is down to about 21.56ms
@@ -55,7 +55,7 @@ The basic steps to compile and run this repo is as same as [LIO-SAM](https://git
 </tr>
 
 <tr>
-<th>extract<br>surrounding<br>scans</th><th>build<br>kdtree</th><th>one<br>frame</th><th>extract<br>surrounding<br>scans</th><th>update<br>hashmap</th><th>one<br>KNN</th><th>one<br>frame</th><th>speed-up</th>
+<th>extract<br>surrounding<br>key frames</th><th>build<br>kdtree</th><th>one<br>frame</th><th>extract<br>surrounding<br>key frames</th><th>update<br>hashmap</th><th>one<br>KNN</th><th>one<br>frame</th><th>speed-up</th>
 </tr>
 
 <tr>
